@@ -26,7 +26,7 @@ const int INTERMEDIATE_AGE = 2;
 const int ADVANCED_AGE = 3;
 
 const float MIN_ADVANCED_PCT = 0.0;
-const float CARBON_WEIGHT = 0;  // how much importance you want to give carbon in the objective function
+const float CARBON_WEIGHT = 0.6;  // how much importance you want to give carbon in the objective function
                 //Set CARBON_WEIGHT to 0 to ignore it.
 
 // SIMULATED ANNEALING CONTROL VARS -- shouldn't really need to change, but just in case
