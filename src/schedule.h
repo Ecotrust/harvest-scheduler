@@ -9,8 +9,8 @@
 
 enum {NPOLY = 29750}; //#total number of stands
 enum {NSTRATA = 165};//the max value of the input plots
-enum {NSTRATA_MAP = 55}; //#number of plots?
-enum {NPX = 6}; //#number of prescriptions
+enum {NCOND = 55}; //#number of plots?
+enum {NRX = 6}; //#number of prescriptions
 enum {NOFF = 9}; //#number of offsets
 enum {NTP = 39}; //#number of time periods
 enum {NSPECIES = 21}; // number of species groups
@@ -26,7 +26,7 @@ const int INTERMEDIATE_AGE = 2;
 const int ADVANCED_AGE = 3;
 
 const float MIN_ADVANCED_PCT = 0.0;
-const float CARBON_WEIGHT = 0.6;  // how much importance you want to give carbon in the objective function
+const float CARBON_WEIGHT = 0.0;  // how much importance you want to give carbon in the objective function
                 //Set CARBON_WEIGHT to 0 to ignore it.
 
 // SIMULATED ANNEALING CONTROL VARS -- shouldn't really need to change, but just in case
@@ -35,7 +35,7 @@ const int SA_START_TEMPERATURE = 10; // anneal start temp -- higher = more rando
 const int SA_POLY_TESTS_PER_TEMP = 1000; // number of polygons checked per temperature iteration
 const double SA_TEMP_DECAY_PER_ITER = 0.997; // multiplier used to decay temperature at end of each iter
 const double SA_MINIMUM_TEMP = 0.05; // temperature at which annealing process ends
-
+const int OBJ_EXPONENT = 2;
 
 enum {MAX_STR_LENGTH = 256};
 

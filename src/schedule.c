@@ -19,8 +19,6 @@
 #include <string.h>
 #include <time.h>
 
-const int OBJ_EXPONENT = 2;
-
 /******************************************************************************\
  *
  * Global Variables
@@ -30,15 +28,15 @@ const int OBJ_EXPONENT = 2;
 char own_type[NPOLY+1][MAX_STR_LENGTH];
 char species_map[NSPECIES][MAX_STR_LENGTH];
 int species_count = 0;
-double x_cutbfvol[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-double x_cutbfvol_spec[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1][NSPECIES];
-double x_cutcubvol[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-double x_cutcubvol_spec[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1][NSPECIES];
-double x_C_tons[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-int x_age[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-double x_livevol[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-int x_cutbfvol_valid[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
-int x_cutcubvol_valid[NSTRATA_MAP+1][NPX+1][NOFF+1][NTP+1];
+double x_cutbfvol[NCOND+1][NRX+1][NOFF+1][NTP+1];
+double x_cutbfvol_spec[NCOND+1][NRX+1][NOFF+1][NTP+1][NSPECIES];
+double x_cutcubvol[NCOND+1][NRX+1][NOFF+1][NTP+1];
+double x_cutcubvol_spec[NCOND+1][NRX+1][NOFF+1][NTP+1][NSPECIES];
+double x_C_tons[NCOND+1][NRX+1][NOFF+1][NTP+1];
+int x_age[NCOND+1][NRX+1][NOFF+1][NTP+1];
+double x_livevol[NCOND+1][NRX+1][NOFF+1][NTP+1];
+int x_cutbfvol_valid[NCOND+1][NRX+1][NOFF+1][NTP+1];
+int x_cutcubvol_valid[NCOND+1][NRX+1][NOFF+1][NTP+1];
 double acres[NPOLY+1];
 // Arrays added by APR
 
@@ -340,7 +338,7 @@ int read_in_pat_file(char* fname)
     // Now to read it in...
 
     //while ((fscanf_line = fscanf(fin,"%d,%f,%s ,%d,%d",
-    //				&new_poly, &new_acres, new_ownership, &new_strata, &new_rx)) != EOF)
+    //        &new_poly, &new_acres, new_ownership, &new_strata, &new_rx)) != EOF)
     while (fgets( col_header, MAX_STR_LENGTH, fin))
     {
         curr_field = strtok( col_header, ",");
@@ -388,7 +386,7 @@ int read_in_pat_file(char* fname)
         if (new_poly <= NPOLY)
         {
             // Sanity checks
-            if (new_rx > NPX)
+            if (new_rx > NRX)
             {
                 printf("We have an out of range RX = %d\n",new_rx);
                 printf("Record %d = %s,%d,%f,%s\n",
@@ -426,7 +424,7 @@ int read_in_pat_file(char* fname)
 
             // DEBUG CODE ////////////////////////////////////////////////
             //printf("Got here too! Record %d = %s,%d,%f,%d\n",
-            //	 new_poly,own_type[new_poly],poly_biz_px[new_poly],acres[new_poly],strata_link[new_poly]);
+            //   new_poly,own_type[new_poly],poly_biz_px[new_poly],acres[new_poly],strata_link[new_poly]);
             // DEBUG CODE ////////////////////////////////////////////////
         }
         else
@@ -441,7 +439,7 @@ int read_in_pat_file(char* fname)
     //for (i=1;i<=20;i++)
     //  {
     //    printf("Record %d = %s,%d,%f,%d\n",
-    //	     i,own_type[i],poly_biz_px[i],acres[i],strata_link[i]);
+    //       i,own_type[i],poly_biz_px[i],acres[i],strata_link[i]);
     //  }
     // DEBUG CODE ////////////////////////////////////////////////
 
@@ -465,9 +463,9 @@ int dump_cut_array()
     printf("+++++++++++++++++\n");
     printf("Cut Array Dump - \n");
     printf("-----------------\n");
-    for (i=0; i<NPX; i++)
+    for (i=0; i<NRX; i++)
     {
-        for (iii=0; iii<NSTRATA_MAP; iii++)
+        for (iii=0; iii<NCOND; iii++)
         {
             for (ii=0; ii<NOFF; ii++)
             {
@@ -559,7 +557,7 @@ int read_in_cut_file(char* fname)
 
     // Now to read it in...
     //while ((fscanf_line = fscanf(fin,"%d,%d,%d,%d,%s ,%f,%s",
-//				&new_rx, &new_offset, &new_strata, &new_tp, new_species, &new_cutvol, read_buffer )) != EOF)
+//        &new_rx, &new_offset, &new_strata, &new_tp, new_species, &new_cutvol, read_buffer )) != EOF)
     while (fgets( col_header, MAX_STR_LENGTH, fin))
     {
         curr_field = strtok( col_header, ",");
@@ -610,7 +608,7 @@ int read_in_cut_file(char* fname)
         //printf("Record %d = %s,%d,%f,%d\n", new_rx,new_strata);
         // DEBUG CODE ////////////////////////////////////////////////
 
-        if (new_rx <= NPX &&
+        if (new_rx <= NRX &&
                 new_offset <= NOFF &&
                 // new_strata <= NSTRATA &&
                 new_tp <= NTP)
@@ -655,7 +653,7 @@ int read_in_cut_file(char* fname)
         else
         {
             // We have a problem...
-            if ( new_rx > NPX )
+            if ( new_rx > NRX )
             {
                 sprintf(gs,"WARNING: rx out of range: %d (%d, %d, %s, %d, %f)", new_rx,new_rx,new_offset,new_strata,new_tp,new_cutvol);
                 logit(2,gs);
@@ -682,9 +680,9 @@ int read_in_cut_file(char* fname)
     }
 
     // sanity check on incoming data: make sure cuts are spread over offset
-    for ( sk = 0; sk <= NSTRATA_MAP; sk++ )
+    for ( sk = 0; sk <= NCOND; sk++ )
     {
-        for ( rx = 0; rx <= NPX; rx++ )
+        for ( rx = 0; rx <= NRX; rx++ )
         {
             for ( tp = 0; tp <= NTP; tp++ )
             {
@@ -801,7 +799,7 @@ int read_in_cut_cu_file(char* fname)
         //printf("Record %d = %s,%d,%f,%d\n", new_rx,new_strata);
         // DEBUG CODE ////////////////////////////////////////////////
 
-        if (new_rx <= NPX &&
+        if (new_rx <= NRX &&
                 new_offset <= NOFF &&
                 // new_strata <= NSTRATA &&
                 new_tp <= NTP)
@@ -846,7 +844,7 @@ int read_in_cut_cu_file(char* fname)
         else
         {
             // We have a problem...
-            if ( new_rx > NPX )
+            if ( new_rx > NRX )
             {
                 sprintf(gs,"WARNING: rx out of range: %d (%d, %d, %s, %d, %f)", new_rx,new_rx,new_offset,new_strata,new_tp,new_cutvol);
                 logit(2,gs);
@@ -874,9 +872,9 @@ int read_in_cut_cu_file(char* fname)
 
     // sanity check on incoming data: make sure cuts are spread over offset
     int sk, offset, tp, rx;
-    for ( sk = 0; sk <= NSTRATA_MAP; sk++ )
+    for ( sk = 0; sk <= NCOND; sk++ )
     {
-        for ( rx = 0; rx <= NPX; rx++ )
+        for ( rx = 0; rx <= NRX; rx++ )
         {
             for ( tp = 0; tp <= NTP; tp++ )
             {
@@ -940,7 +938,7 @@ int read_in_car_file(char* fname)
 
     // Now to read it in...
     //while ((fscanf_line = fscanf(fin,"%d,%d,%d,%d,%f,%s",
-    //			&new_rx, &new_offset, &new_strata, &new_tp, &new_carbon, read_buffer)) != EOF)
+    //      &new_rx, &new_offset, &new_strata, &new_tp, &new_carbon, read_buffer)) != EOF)
     while (fgets( col_header, MAX_STR_LENGTH, fin))
     {
         curr_field = strtok( col_header, ",");
@@ -979,7 +977,7 @@ int read_in_car_file(char* fname)
         }
 
 
-        if (new_rx <= NPX &&
+        if (new_rx <= NRX &&
                 new_offset <= NOFF &&
                 // new_strata <= NSTRATA &&
                 new_tp <= NTP)
@@ -1003,7 +1001,7 @@ int read_in_car_file(char* fname)
         else
         {
             // We have a problem...
-            if ( new_rx > NPX ) {
+            if ( new_rx > NRX ) {
                 sprintf(gs,"WARNING: rx out of range: %d (%d, %d, %s, %d, %f)", new_rx,new_rx,new_offset,new_strata,new_tp,new_carbon);
                 logit(2,gs);
             }
@@ -1098,7 +1096,7 @@ int read_in_age_file(char* fname)
             continue;
         }
 
-        if (new_rx <= NPX &&
+        if (new_rx <= NRX &&
                 new_offset <= NOFF &&
                 // new_strata <= NSTRATA &&
                 new_tp <= NTP &&
@@ -1124,7 +1122,7 @@ int read_in_age_file(char* fname)
         else
         {
             // We have a problem...
-            if ( new_rx > NPX )
+            if ( new_rx > NRX )
             {
                 sprintf(gs,"WARNING: rx out of range: %d (%d, %d, %s, %d, %f)", new_rx,new_rx,new_offset,new_strata,new_tp,new_age);
                 logit(2,gs);
@@ -1192,7 +1190,7 @@ int read_in_live_file(char* fname)
 
     // Now to read it in...
     //while ((fscanf_line = fscanf(fin,"%d,%d,%d,%d,%f,%s",
-//				&new_rx, &new_offset, &new_strata, &new_tp, &new_live, read_buffer)) != EOF)
+//        &new_rx, &new_offset, &new_strata, &new_tp, &new_live, read_buffer)) != EOF)
     while (fgets( col_header, MAX_STR_LENGTH, fin))
     {
         curr_field = strtok( col_header, ",");
@@ -1230,7 +1228,7 @@ int read_in_live_file(char* fname)
         }
 
 
-        if (new_rx <= NPX &&
+        if (new_rx <= NRX &&
                 new_offset <= NOFF &&
                 // new_strata <= NSTRATA &&
                 new_tp <= NTP)
@@ -1254,7 +1252,7 @@ int read_in_live_file(char* fname)
         else
         {
             // We have a problem...
-            if ( new_rx > NPX ) {
+            if ( new_rx > NRX ) {
                 sprintf(gs,"WARNING: rx out of range: %d (%d, %d, %s, %d, %f)", new_rx,new_rx,new_offset,new_strata,new_tp,new_live);
                 logit(2,gs);
             }
@@ -1406,13 +1404,13 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
     //  for (i=1;i<=NPOLY;i++)
     //    {
     //      if (i%2 == 0)
-    //	{
-    //	  strcpy((char*)own_type[i],"STATE");
-    //	}
+    //  {
+    //    strcpy((char*)own_type[i],"STATE");
+    //  }
     //      else
-    //	{
-    //	  strcpy((char*)own_type[i],"FEDERAL");
-    //	}
+    //  {
+    //    strcpy((char*)own_type[i],"FEDERAL");
+    //  }
     //      beg_adj_ptr[i] = (i-1) * 5;
     //      end_adj_ptr[i] = ((i-1) * 5) + 4;
     //    }
@@ -1442,6 +1440,9 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
     sprintf(gs, "---------------------------------------------------");
     logit(1,gs);
 
+    //=====================================================
+    // Calculate the initial harvest data
+    //=====================================================
     for (i=1; i<=NPOLY; i++)
     {
         // Init the offset array to be 0 by default
@@ -1549,8 +1550,8 @@ skipcount:
     }
 
     // DEBUG CODE ////////////////////////////////////////////////
-    sprintf(gs, "Number of valid entries from cut file = %d\n",debug_count1);
-    logit(1,gs);
+    //sprintf(gs, "Number of valid entries from cut file = %d\n",debug_count1);
+    //logit(1,gs);
     //sprintf(gs, "Number of invalid entries from the cut file = %d\n",debug_count2);  logit(1,gs);
     // DEBUG CODE ////////////////////////////////////////////////
 
@@ -1571,6 +1572,9 @@ skipcount:
     //for (index1=0;index1<NOFF;index1++)
     // DEBUG CODE ////////////////////////////////////////////////
 
+    //=====================================================
+    // Print initial harvest data
+    //=====================================================
     for (index1=0; index1<1; index1++)
     {
         volume_total = 0.0;
@@ -1587,10 +1591,9 @@ skipcount:
         sprintf(gs, "----------------------------------------------");
         logit(1,gs);
     }
-    //sprintf(gs, "---------------------------------------------------\n");  logit(1,gs);
 
     //=====================================================
-    // target volumes
+    // Determine target volumes (incorporate boost)
     //=====================================================
 
 
@@ -1635,37 +1638,14 @@ skipcount:
     //    sprintf(gs, "and dont know what this is = %d\n",vol_per_period_check);
     logit(2,gs);
 
-
-
-    //==========================================================================
-    // control parameters
-    //==========================================================================
+    //=========================================================================
+    // start simulated annealing process
+    //=========================================================================
 
     temp=SA_START_TEMPERATURE;
     nrep=SA_POLY_TESTS_PER_TEMP;
     alpha=SA_TEMP_DECAY_PER_ITER;
     end_temp=SA_MINIMUM_TEMP;
-
-    // DEBUG CODE ////////////////////////////////////////////////
-    //sprintf(gs,"beginning temp %6.1f",temp);
-    //logit(1,gs);
-    //
-    //sprintf(gs,"ending    temp %6.1f",end_temp);
-    //logit(1,gs);
-    //
-    //sprintf(gs,"nrep           %6d",nrep);
-    //logit(1,gs);
-    //
-    //sprintf(gs,"reduction fact %6.4f",alpha);
-    //logit(1,gs);
-    //
-    //sprintf(gs,"number of trials %8d",n_trials);
-    //logit(1,gs);
-    // DEBUG CODE ////////////////////////////////////////////////
-
-    //=========================================================================
-    // start simulated annealing process
-    //=========================================================================
 
     do
     {
@@ -1674,7 +1654,8 @@ skipcount:
         {
 try_nu_poly:
             ;
-            //cand_poly= (((rand() << 15) + rand()) % NPOLY) + 1;
+
+            // Determine which polygon to adjust
             cand_poly= (rand() % NPOLY) + 1;
 
             if ((cand_poly>NPOLY) || (cand_poly<1))
@@ -1682,43 +1663,41 @@ try_nu_poly:
                 sprintf(gs,"poly number is out of range = %d",cand_poly);
                 logit(2,gs);
             }
-            else
-            {
-                //printf("cand_poly = %d\n",cand_poly);
-            }
 
+            //=====================================================
+            // Skip polygon if....
+            //=====================================================
+
+            // skip if the polygon ownership is not correct
+            // TODO remove ownership concept
             if (strcmp(own_type[cand_poly],ownership)!=0)
-            {
                 goto try_nu_poly;
-            }
 
+            // skip if not a forest polygon
             st=strata_link[cand_poly];
-            // if (st==zero)
             if (strcmp(st,zero) == 0)
-            {
-                goto try_nu_poly; // not a forest poly
-            }
+                goto try_nu_poly;
 
+            // poly's strata did not appear in cut, live, or carbon data
             st_key = get_key_from_strata(st);
             if ( st_key == -1 )
-            {
-                goto try_nu_poly; // poly's strata did not appear in cut, live, or carbon data
-            }
+                goto try_nu_poly;
 
+            // poly_bix ?? I think this is selecting a Prescription
+            // TODO change to Rx notation 
             px=poly_biz_px[cand_poly];
+            if (px==0)
+                goto try_nu_poly;
 
-            if (px==0) goto try_nu_poly;
-            if (px >= 1 && px < NPX)
-            {
+            //=============================
+            // Choose a random offset
+            //=============================
+            if (px >= 1 && px < NRX)
                 offset=rand() % NOFF;
-                //printf("Offset = %d\n",offset);
-            }
 
             //=========================================================================
             //check adjacency
             //=========================================================================
-
-
             if (acres[cand_poly] < MIN_ACREAGE_FOR_ADJ_CHECK)
             {
                 goto skip_adjcheck;
@@ -1740,7 +1719,7 @@ try_nu_poly:
                     goto nextk;  // dont worry about slivers and rip polys
                 }
                 sta=strata_link[adj_poly];
-                // if (sta==zero)
+
                 if (strcmp(sta,zero) ==0)
                 {
                     goto nextk;
@@ -1755,7 +1734,11 @@ try_nu_poly:
                 pxa=poly_biz_px[adj_poly];
                 offadj=soln[adj_poly];  // offset for adjacent poly
 
-                for (tp=1; tp<=NTP; tp++) // clearcut assumed to have 20 mbf/acre
+                // -------------
+                // adj polys will not be simul cut if both exceed this cut val in BF
+                // TODO double check this logic
+                // -------------
+                for (tp=1; tp<=NTP; tp++)
                 {
                     if ((x_cutbfvol[st_key][px][offset][tp] > CLEARCUT_TEST_THRESHHOLD) &&
                             (x_cutbfvol[sta_key][pxa][offadj][tp] > CLEARCUT_TEST_THRESHHOLD))
@@ -1786,39 +1769,24 @@ skip_adjcheck:
                 }
             }
 
-            // DEBUG CODE ////////////////////////////////////////////////
-            // Print some debug...
-            //if (x_cutbfvol[st_key][px][offset][tp] != 0)
-            //  {
-            //    sprintf(gs, "New offset - x_cutbfvol[%d][%d][%d][%d]=%d",st_key, px, offset, tp, x_cutbfvol[st_key][px][offset][tp]); logit(1,gs);
-            //  }
-            // DEBUG CODE ////////////////////////////////////////////////
-
-            //=========================================================================
-            // find value of temporary solution by adjusting current obj function value
-            //=========================================================================
+            //=======================================================
+            // find temp objective function value
+            //=======================================================
 
             temp_obj=0.0;
             temp_carbon=0.0;
             poffset=soln[cand_poly];
-            for (tp=1; tp<=NTP; tp++)   //Changed start point from 0 because of weird data alignment (temp counts from zero, obj counts from 1) TODO
+
+            //Changed start point from 0 because of weird data alignment (temp counts from zero, obj counts from 1) TODO
+            for (tp=1; tp<=NTP; tp++)   
             {
-                // DEBUG CODE ////////////////////////////////////////////////
-                //if (x_cutbfvol_valid[st_key][px][offset][tp] != 1)
-                //  {
-                //	 temp_obj = 0.1;
-                //	 //sprintf(gs, "* Applying offset for invalid criteria - %d,%d,%d,%d",st_key,px,offset,tp); logit(1,gs);
-                //  }
                 change=((x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly])-
                         (x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly]))/TO_MMBFPY_DENOM;
-
-                //C_change=((x_C_tons[st_key][px][offset][tp]*acres[cand_poly])-
-                //     (x_C_tons[st_key][px][poffset][tp]*acres[cand_poly]));
 
                 temp_obj+=m1*pow(fabs(target_vol[tp]-(vol_per_period[tp]+change)),OBJ_EXPONENT);
                 temp_carbon+= carbon_per_period[tp];
             }
-            if (CARBON_WEIGHT != 0) {
+            if (CARBON_WEIGHT != 0.0) {
                 temp_obj = temp_obj/(CARBON_WEIGHT * temp_carbon);
             }
 
@@ -1826,18 +1794,14 @@ skip_adjcheck:
             //  decide whether to accept candidate
             //=============================================================
 
-            delta=temp_obj - obj;
+            delta = temp_obj - obj;
 
             if (delta<0)
             {
+                // this solution is an definite improvement (temp_obj is LESS THAN than the current obj)
 
-                //	     printf( "delta: %f, temp: %f, ex: %f, x: %f\n", delta, temp, ex, x );
-
-                // DEBUG CODE ////////////////////////////////////////////////
-                //sprintf(gs, "* Applying offset because objective function changed for the better"); logit(1,gs);
-                //sprintf(gs, "  - delta=%7.4f obj=%7.4f temp_obj=%7.4f cand_poly=%d poffset=%d",delta,obj,temp_obj,cand_poly,poffset);
-                //logit(1,gs);
-                // DEBUG CODE ////////////////////////////////////////////////
+                // DEBUG CODE
+                // printf( "delta: %f, temp: %f, ex: %f, x: %f\n", delta, temp, ex, x );
 
                 obj=temp_obj;
                 obj_it++;
@@ -1847,10 +1811,18 @@ skip_adjcheck:
 
                 best_obj = obj;
 
+                // Recalculate the 
+                // TODO: Repeated code, see about 80 lines down
                 for (tp=1; tp<=NTP; tp++)
                 {
+
                     vol_per_period[tp]+=(x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
                                          x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM;
+
+                    // DEBUG CODE
+                    // if (tp == 11)
+                    //     printf("vol_per_period [ %d ] =  %f\n", tp, vol_per_period[tp] );
+
                     if (cubic_data == 0)
                     {
                         cub_vol_per_period[tp]+=(x_cutcubvol[st_key][px][offset][tp]*acres[cand_poly]-
@@ -1910,27 +1882,24 @@ skip_adjcheck:
             }
             else
             {
-                // Make sure we do not get stuck at a local max, toss in another
-                // random jump to get unstuck.
+                // this solution is NOT an improvement (temp_obj is GREATER than the current obj)
 
+                // But there is still hope... Try some random acceptance (within limits of the temperature)
+                // TODO the 1000 constant should come from SA_POLY_TESTS_PER_TEMP
                 x=rand () % 1000;
                 x=x/1000.0;
                 ex=exp(-delta/temp);
 
+
                 if (x<ex)
                 {
-                    // DEBUG CODE ////////////////////////////////////////////////
-                    //sprintf(gs, "** Selecting a random poly offset to avoid local min/max");  logit(1,gs);
-                    //sprintf(gs, "  - x=%7.4f ex=%7.4f cand_poly=%d poffset=%d",x,ex,cand_poly,poffset);
-                    //logit(1,gs);
-                    // DEBUG CODE ////////////////////////////////////////////////
-
                     obj=temp_obj;
                     obj_it_rand++;
 
                     soln[cand_poly]=offset;
                     soln_modified[cand_poly]++;
 
+                    // TODO: Repeated code, see ~ 80 lines up
                     for (tp=1; tp<=NTP; tp++)
                     {
                         vol_per_period[tp]+=(x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
@@ -2020,7 +1989,7 @@ skip_adjcheck:
     for (tp=0; tp<=NTP; tp++)
     {
         //sprintf(gs, "tp %3d   vol %7.4f   target %5.1f   var %7.2f   func %7.2f   C %7.4f   live %7.4f",
-        //	       tp, vol_per_period[tp], target_vol[tp], vol_per_period[tp]/target_vol[tp], obj_per_period[tp], carbon_per_period[tp], livevol_per_period[tp]);
+        //         tp, vol_per_period[tp], target_vol[tp], vol_per_period[tp]/target_vol[tp], obj_per_period[tp], carbon_per_period[tp], livevol_per_period[tp]);
         sprintf(gs, "tp %3d   vol %7.4f   live %7.4f   C %7.4f  adv %5.3f%%",
                 tp, vol_per_period[tp], livevol_per_period[tp], carbon_per_period[tp], 100*advanced_acres[tp]/total_acres);
         logit(1,gs);
@@ -2166,7 +2135,7 @@ int main (int argc, char *argv[])
     char in_file_age[256];
 
     strata_link = (char (*)[MAX_STR_LENGTH]) malloc(sizeof(char) * (NPOLY+1) * MAX_STR_LENGTH);
-    strata_map = (char (*)[MAX_STR_LENGTH]) malloc(sizeof(char) * (NSTRATA_MAP+1) * MAX_STR_LENGTH);
+    strata_map = (char (*)[MAX_STR_LENGTH]) malloc(sizeof(char) * (NCOND+1) * MAX_STR_LENGTH);
 
     if (argc != 7)
     {
