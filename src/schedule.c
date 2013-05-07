@@ -55,6 +55,75 @@ char (*strata_map)[MAX_STR_LENGTH];
 char (*strata_link)[MAX_STR_LENGTH];
 
 
+
+
+
+
+
+
+    int k,k1,k2,adj_poly,sta_key,pxa,offset,offadj,poffset;
+    int px,st_key;
+    char* st;
+    char* sta;
+    char* zero = "0";
+    double obj,temp_obj,best_obj, temp_carbon;
+    double delta;
+    double change;
+    int obj_it = 0;
+    int obj_it_rand = 0;
+    int temp_change_it = 0;
+    int obj_no_change = 0;
+
+    int tp;
+    int spec;
+    int n_trials = 0;
+    int i;
+    int rep,nrep;
+    int cand_poly;
+    double target_vol[NTP+1];
+    float temp,alpha,end_temp,x,ex;
+    float vol_per_period[NTP+1];
+    float spec_vol_per_period[NTP+1][NSPECIES];
+    float cub_vol_per_period[NTP+1];
+    float spec_cub_vol_per_period[NTP+1][NSPECIES];
+    float obj_per_period[NTP+1];
+    float carbon_per_period[NTP+1];
+    float livevol_per_period[NTP+1];
+    float vol_per_period_check[NTP+1][NOFF+1];
+    float cub_vol_per_period_check[NTP+1][NOFF+1];
+    float carbon_per_period_check[NTP+1][NOFF+1];
+    float livevol_per_period_check[NTP+1][NOFF+1];
+    int soln[NPOLY+1];
+    int soln_modified[NPOLY+1];
+
+
+    // Added by APR
+    char out_file_txt[MAX_STR_LENGTH];
+    char out_file_summary[MAX_STR_LENGTH];
+    double volume_total = 0.0;
+
+    int debug_count1 = 0;
+    int debug_count2 = 0;
+    int debug_count3 = 0;
+    int cub_debug_count1 = 0; //for the addition of cubic cut vol entries
+    int cub_debug_count2 = 0;
+    int index1 = 0;
+
+    // Added by RDH for Age consideration
+    double total_acres = 0;
+    double advanced_acres[NTP+1];
+    // int prev_offset[NPOLY+1][NTP+1];
+    int (*prev_offset)[NTP+1];
+
+
+
+
+
+
+
+
+
+
 /******************************************************************************\
  * Function:: logit
  *
@@ -1277,6 +1346,81 @@ int read_in_live_file(char* fname)
     return 1;
 }
 
+/******************************************************************************\
+ * Function:: recalc
+ * 
+ * Recalculate per_period values using global arrays
+ *
+ * @void - No return value
+ *
+\******************************************************************************/
+void recalc() {
+    int tp;
+
+    for (tp=1; tp<=NTP; tp++)
+    {
+
+        vol_per_period[tp]+=(x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
+                             x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM;
+
+        if (cubic_data == 0)
+        {
+            cub_vol_per_period[tp]+=(x_cutcubvol[st_key][px][offset][tp]*acres[cand_poly]-
+                                     x_cutcubvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMCUBFPY_DENOM;
+        }
+
+        for ( spec=0; spec<NSPECIES; spec++ )
+        {
+            spec_vol_per_period[tp][spec] += (x_cutbfvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
+                                              x_cutbfvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMBFPY_DENOM;
+            if (cubic_data == 0)
+            {
+                spec_cub_vol_per_period[tp][spec] += (x_cutcubvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
+                                                      x_cutcubvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMCUBFPY_DENOM;
+            }
+
+            if ( fabs(spec_vol_per_period[tp][spec]) > 0.001 && spec_vol_per_period[tp][spec] < 0 )
+            {
+                 sprintf(gs,"negative species vol poly");
+                 logit(2,gs);
+            }
+
+        }
+
+        carbon_per_period[tp]+=(x_C_tons[st_key][px][offset][tp]*acres[cand_poly]-
+                                x_C_tons[st_key][px][poffset][tp]*acres[cand_poly]);
+
+        livevol_per_period[tp]+=(x_livevol[st_key][px][offset][tp]*acres[cand_poly]-
+                                 x_livevol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM_LIVE;
+
+        obj_per_period[tp] = M1*pow(fabs(target_vol[tp]-vol_per_period[tp]),OBJ_EXPONENT);
+
+        if ( fabs(vol_per_period[tp]) > 0.001 && vol_per_period[tp] < 0 )
+        {
+            sprintf(gs,"negative vol poly:%d rx:%d tp:%d (%f leaving %f)", cand_poly, px, tp,
+                    (x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
+                     x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM,
+                    vol_per_period[tp]);
+            logit(2,gs);
+        }
+
+        if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] == ADVANCED_AGE &&
+                x_age[st_key][px][offset][tp] != ADVANCED_AGE )
+        {
+            advanced_acres[tp] -= acres[cand_poly];
+        }
+
+        if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] != ADVANCED_AGE &&
+                x_age[st_key][px][offset][tp] == ADVANCED_AGE )
+        {
+            advanced_acres[tp] += acres[cand_poly];
+        }
+
+        prev_offset[cand_poly][tp] = offset;
+
+    }
+}
+
 
 /******************************************************************************\
  * Function:: harvest
@@ -1293,60 +1437,6 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
 
     FILE *fin;
 
-    int k,k1,k2,adj_poly,sta_key,pxa,offset,offadj,poffset;
-    int px,st_key;
-    char* st;
-    char* sta;
-    char* zero = "0";
-    double obj,temp_obj,best_obj, temp_carbon;
-    double delta,m1;
-    double change;
-    int obj_it = 0;
-    int obj_it_rand = 0;
-    int temp_change_it = 0;
-    int obj_no_change = 0;
-
-    int tp;
-    int spec;
-    int n_trials = 0;
-    int i;
-    int rep,nrep;
-    int cand_poly;
-    double target_vol[NTP+1];
-    float temp,alpha,end_temp,x,ex;
-    float vol_per_period[NTP+1];
-    float spec_vol_per_period[NTP+1][NSPECIES];
-    float cub_vol_per_period[NTP+1];
-    float spec_cub_vol_per_period[NTP+1][NSPECIES];
-    float obj_per_period[NTP+1];
-    float carbon_per_period[NTP+1];
-    float livevol_per_period[NTP+1];
-    float vol_per_period_check[NTP+1][NOFF+1];
-    float cub_vol_per_period_check[NTP+1][NOFF+1];
-    float carbon_per_period_check[NTP+1][NOFF+1];
-    float livevol_per_period_check[NTP+1][NOFF+1];
-    //float inv_per_period[NTP+1];
-    int soln[NPOLY+1];
-    int soln_modified[NPOLY+1];
-
-
-    // Added by APR
-    char out_file_txt[MAX_STR_LENGTH];
-    char out_file_summary[MAX_STR_LENGTH];
-    double volume_total = 0.0;
-
-    int debug_count1 = 0;
-    int debug_count2 = 0;
-    int debug_count3 = 0;
-    int cub_debug_count1 = 0; //for the addition of cubic cut vol entries
-    int cub_debug_count2 = 0;
-    int index1 = 0;
-
-    // Added by RDH for Age consideration
-    double total_acres = 0;
-    double advanced_acres[NTP+1];
-    // int prev_offset[NPOLY+1][NTP+1];
-    int (*prev_offset)[NTP+1];
     prev_offset = (int (*)[NTP+1]) malloc(sizeof(int) * (NPOLY+1) * (NTP+1));
 
     if (alt_biz == 0)
@@ -1367,9 +1457,6 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
     // DEBUG CODE ////////////////////////////////////////////////
 
     srand(1);    // initialize random number seed
-
-    m1=10.0;
-
 
     //=====================================================
     // initial solution
@@ -1595,8 +1682,6 @@ skipcount:
     //=====================================================
     // Determine target volumes (incorporate boost)
     //=====================================================
-
-
     sprintf(gs, "Target Volume -> User Defined = %f",target_val);
     logit(1,gs);
     target_vol[0] = 0.0;
@@ -1622,7 +1707,7 @@ skipcount:
 
     for (tp=1; tp<=NTP; tp++)
     {
-        obj_per_period[tp]=m1*pow(fabs(target_vol[tp]-vol_per_period[tp]),OBJ_EXPONENT);
+        obj_per_period[tp]=M1*pow(fabs(target_vol[tp]-vol_per_period[tp]),OBJ_EXPONENT);
         obj+=obj_per_period[tp];
         temp_carbon += carbon_per_period[tp];
     }
@@ -1783,7 +1868,7 @@ skip_adjcheck:
                 change=((x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly])-
                         (x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly]))/TO_MMBFPY_DENOM;
 
-                temp_obj+=m1*pow(fabs(target_vol[tp]-(vol_per_period[tp]+change)),OBJ_EXPONENT);
+                temp_obj+=M1*pow(fabs(target_vol[tp]-(vol_per_period[tp]+change)),OBJ_EXPONENT);
                 temp_carbon+= carbon_per_period[tp];
             }
             if (CARBON_WEIGHT != 0.0) {
@@ -1811,83 +1896,16 @@ skip_adjcheck:
 
                 best_obj = obj;
 
-                // Recalculate the 
-                // TODO: Repeated code, see about 80 lines down
-                for (tp=1; tp<=NTP; tp++)
-                {
+                recalc();
 
-                    vol_per_period[tp]+=(x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                         x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM;
-
-                    // DEBUG CODE
-                    // if (tp == 11)
-                    //     printf("vol_per_period [ %d ] =  %f\n", tp, vol_per_period[tp] );
-
-                    if (cubic_data == 0)
-                    {
-                        cub_vol_per_period[tp]+=(x_cutcubvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                                 x_cutcubvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMCUBFPY_DENOM;
-                    }
-
-                    for ( spec=0; spec<NSPECIES; spec++ )
-                    {
-                        spec_vol_per_period[tp][spec] += (x_cutbfvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
-                                                          x_cutbfvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMBFPY_DENOM;
-                        if (cubic_data == 0)
-                        {
-                            spec_cub_vol_per_period[tp][spec] += (x_cutcubvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
-                                                                  x_cutcubvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMBFPY_DENOM;
-                        }
-
-                        if ( fabs(spec_vol_per_period[tp][spec]) > 0.001 && spec_vol_per_period[tp][spec] < 0 )
-                        {
-                            sprintf(gs,"negative species vol poly");
-                            logit(2,gs);
-                        }
-
-                    }
-
-                    carbon_per_period[tp]+=(x_C_tons[st_key][px][offset][tp]*acres[cand_poly]-
-                                            x_C_tons[st_key][px][poffset][tp]*acres[cand_poly]);
-
-                    livevol_per_period[tp]+=(x_livevol[st_key][px][offset][tp]*acres[cand_poly]-
-                                             x_livevol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM_LIVE;
-
-                    obj_per_period[tp] = m1*pow(fabs(target_vol[tp]-vol_per_period[tp]),OBJ_EXPONENT);
-
-                    if ( fabs(vol_per_period[tp]) > 0.001 && vol_per_period[tp] < 0 )
-                    {
-                        sprintf(gs,"negative vol poly:%d rx:%d tp:%d (%f leaving %f)", cand_poly, px, tp,
-                                (x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                 x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM,
-                                vol_per_period[tp]);
-                        logit(2,gs);
-                    }
-
-                    if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] == ADVANCED_AGE &&
-                            x_age[st_key][px][offset][tp] != ADVANCED_AGE )
-                    {
-                        advanced_acres[tp] -= acres[cand_poly];
-                    }
-
-                    if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] != ADVANCED_AGE &&
-                            x_age[st_key][px][offset][tp] == ADVANCED_AGE )
-                    {
-                        advanced_acres[tp] += acres[cand_poly];
-                    }
-
-                    prev_offset[cand_poly][tp] = offset;
-
-                }
             }
             else
             {
                 // this solution is NOT an improvement (temp_obj is GREATER than the current obj)
-
                 // But there is still hope... Try some random acceptance (within limits of the temperature)
-                // TODO the 1000 constant should come from SA_POLY_TESTS_PER_TEMP
-                x=rand () % 1000;
-                x=x/1000.0;
+
+                x = rand() % 1000;
+                x = x / 1000.0;
                 ex=exp(-delta/temp);
 
 
@@ -1899,65 +1917,7 @@ skip_adjcheck:
                     soln[cand_poly]=offset;
                     soln_modified[cand_poly]++;
 
-                    // TODO: Repeated code, see ~ 80 lines up
-                    for (tp=1; tp<=NTP; tp++)
-                    {
-                        vol_per_period[tp]+=(x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                             x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM;
-                        if (cubic_data == 0)
-                        {
-                            cub_vol_per_period[tp]+=(x_cutcubvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                                     x_cutcubvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMCUBFPY_DENOM;
-                        }
-
-                        for ( spec=0; spec<NSPECIES; spec++ )
-                        {
-                            spec_vol_per_period[tp][spec] += (x_cutbfvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
-                                                              x_cutbfvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMBFPY_DENOM;
-                            if (cubic_data == 0)
-                            {
-                                spec_cub_vol_per_period[tp][spec] += (x_cutcubvol_spec[st_key][px][offset][tp][spec]*acres[cand_poly]-
-                                                                      x_cutcubvol_spec[st_key][px][poffset][tp][spec]*acres[cand_poly])/TO_MMCUBFPY_DENOM;
-                            }
-
-                            if ( fabs(spec_vol_per_period[tp][spec]) > 0.001 && spec_vol_per_period[tp][spec] < 0 )
-                            {
-                                sprintf(gs,"negative species vol poly");
-                                logit(2,gs);
-                            }
-                        }
-
-
-                        carbon_per_period[tp]+=(x_C_tons[st_key][px][offset][tp]*acres[cand_poly]-
-                                                x_C_tons[st_key][px][poffset][tp]*acres[cand_poly]);
-
-                        livevol_per_period[tp]+=(x_livevol[st_key][px][offset][tp]*acres[cand_poly]-
-                                                 x_livevol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM_LIVE;
-
-                        if ( fabs(vol_per_period[tp]) > 0.001 && vol_per_period[tp] < 0 )
-                        {
-                            sprintf(gs,"negative vol poly:%d rx:%d tp:%d (%f leaving %f)", cand_poly, px, tp,
-                                    (x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly]-
-                                     x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly])/TO_MMBFPY_DENOM,
-                                    vol_per_period[tp]);
-                            logit(2,gs);
-                        }
-
-                        if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] == ADVANCED_AGE &&
-                                x_age[st_key][px][offset][tp] != ADVANCED_AGE )
-                        {
-                            advanced_acres[tp] -= acres[cand_poly];
-                        }
-
-                        if ( x_age[st_key][px][prev_offset[cand_poly][tp]][tp] != ADVANCED_AGE &&
-                                x_age[st_key][px][offset][tp] == ADVANCED_AGE )
-                        {
-                            advanced_acres[tp] += acres[cand_poly];
-                        }
-
-                        prev_offset[cand_poly][tp] = offset;
-
-                    }
+                    recalc();
                 }
                 else
                 {
