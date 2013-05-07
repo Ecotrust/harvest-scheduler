@@ -35,8 +35,8 @@ const int SA_START_TEMPERATURE = 10; // anneal start temp -- higher = more rando
 const int SA_POLY_TESTS_PER_TEMP = 1000; // number of polygons checked per temperature iteration
 const double SA_TEMP_DECAY_PER_ITER = 0.997; // multiplier used to decay temperature at end of each iter
 const double SA_MINIMUM_TEMP = 0.05; // temperature at which annealing process ends
-const int OBJ_EXPONENT = 2;
-const double M1 = 10.0; 
+const int OBJ_EXPONENT = 2; // 2
+const double M1 = 10; // 10 
 
 enum {MAX_STR_LENGTH = 256};
 

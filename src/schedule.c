@@ -68,16 +68,13 @@ char (*strata_link)[MAX_STR_LENGTH];
     char* zero = "0";
     double obj,temp_obj,best_obj, temp_carbon;
     double delta;
-    double change;
     int obj_it = 0;
     int obj_it_rand = 0;
     int temp_change_it = 0;
     int obj_no_change = 0;
 
-    int tp;
     int spec;
     int n_trials = 0;
-    int i;
     int rep,nrep;
     int cand_poly;
     double target_vol[NTP+1];
@@ -1423,6 +1420,61 @@ void recalc() {
 
 
 /******************************************************************************\
+ * Function:: compute_objective_value
+ * 
+ * The "Objective Function". 
+ * Modifies and is heavily dependent on the state of global variables! 
+ * Intertwined with recalc()
+ *
+ * @double - returns the objective value of the current global state
+ *
+\******************************************************************************/
+double compute_objective_value(int initial)
+{
+    double this_obj = 0.0;
+    double change;
+    int this_tp;
+
+    temp_carbon = 0.0;
+
+    // printf("%d OFFSET\n", poffset);
+    // printf("%f this_obj\n\n", this_obj);
+    for (this_tp=1; this_tp<=NTP; this_tp++)
+    {
+        if (initial == 1)
+        {
+            obj_per_period[this_tp] = M1*pow(fabs(target_vol[this_tp]-vol_per_period[this_tp]),OBJ_EXPONENT);
+            this_obj += obj_per_period[this_tp];
+            temp_carbon += carbon_per_period[this_tp];
+        }
+        else
+        {
+            change=((x_cutbfvol[st_key][px][offset][this_tp]*acres[cand_poly])-
+                    (x_cutbfvol[st_key][px][poffset][this_tp]*acres[cand_poly]))/TO_MMBFPY_DENOM;
+
+            this_obj += M1*pow(fabs(target_vol[this_tp]-(vol_per_period[this_tp]+change)), OBJ_EXPONENT);
+            temp_carbon += carbon_per_period[this_tp];
+
+            // printf("%f change\n", change);
+            // printf("%f acres\n", acres[cand_poly]);
+            // printf("%f xcut NEW\n", x_cutbfvol[st_key][px][offset][this_tp]);
+            // printf("%f xcut\n", x_cutbfvol[st_key][px][poffset][this_tp]);
+            // printf("%f target_vol\n", target_vol[this_tp]);
+            // printf("%f vol_per_period\n", vol_per_period[this_tp]);
+            // printf("%f this_obj\n", this_obj);
+            // printf("\n");
+        }
+    }
+    if (CARBON_WEIGHT != 0) {
+        this_obj = this_obj/(CARBON_WEIGHT * temp_carbon);
+    }
+
+    // printf("this_obj is %7.4f \n", this_obj);
+    return this_obj;
+}
+
+
+/******************************************************************************\
  * Function:: harvest
  *
  * @ownership - Ownership type we are processing for in this call.
@@ -1436,6 +1488,9 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
 {
 
     FILE *fin;
+    int tp;
+    int i;
+    int initial = 1;
 
     prev_offset = (int (*)[NTP+1]) malloc(sizeof(int) * (NPOLY+1) * (NTP+1));
 
@@ -1512,20 +1567,18 @@ void harvest(int alt_biz, char* ownership, double target_val, double boost_perce
     //  for (i=1;i<=(sizeof(poly_biz_px)/sizeof(int))-1;i++)
     //    {
     //      poly_biz_px[i] = 1;
-    //    }
+    // sprintf(gs, "---------------------------------------------------");
+    // logit(1,gs);
+    // sprintf(gs, "---------------------------------------------------");
+    // logit(1,gs);
+    // sprintf(gs, "           PROCESSING %s",ownership);
+    // logit(1,gs);
+    // sprintf(gs, "---------------------------------------------------");
+    // logit(1,gs);
+    // sprintf(gs, "---------------------------------------------------");
+    // logit(1,gs);   //    }
     // DEBUG CODE ////////////////////////////////////////////////
 
-
-    sprintf(gs, "---------------------------------------------------");
-    logit(1,gs);
-    sprintf(gs, "---------------------------------------------------");
-    logit(1,gs);
-    sprintf(gs, "           PROCESSING %s",ownership);
-    logit(1,gs);
-    sprintf(gs, "---------------------------------------------------");
-    logit(1,gs);
-    sprintf(gs, "---------------------------------------------------");
-    logit(1,gs);
 
     //=====================================================
     // Calculate the initial harvest data
@@ -1682,7 +1735,7 @@ skipcount:
     //=====================================================
     // Determine target volumes (incorporate boost)
     //=====================================================
-    sprintf(gs, "Target Volume -> User Defined = %f",target_val);
+    sprintf(gs, "Target Volume -> User Defined = %f", target_val);
     logit(1,gs);
     target_vol[0] = 0.0;
     for (tp=1; tp<=NTP; tp++)
@@ -1691,30 +1744,21 @@ skipcount:
 
         if ( tp >= first_boost_period && tp < first_boost_period + boost_periods )
         {
-            target_vol[tp] *= (100.0+boost_percent)/100.0;
+             target_vol[tp] *= (100.0+boost_percent)/100.0;
         }
-        //printf( "tp: %i, target vol: %f\n", tp, target_vol[tp] );
+        printf( "tp: %i, target vol: %f\n", tp, target_vol[tp] );
     }
 
 
     //=====================================================
     // calculate initial value of objective function
     //=====================================================
-
-    obj=0.0;
-    temp_carbon = 0.0;
     best_obj=0.0;
+    obj=0.0;
 
-    for (tp=1; tp<=NTP; tp++)
-    {
-        obj_per_period[tp]=M1*pow(fabs(target_vol[tp]-vol_per_period[tp]),OBJ_EXPONENT);
-        obj+=obj_per_period[tp];
-        temp_carbon += carbon_per_period[tp];
-    }
+    obj = compute_objective_value(initial);
 
-    if (CARBON_WEIGHT != 0) {
-        obj = obj/(CARBON_WEIGHT * temp_carbon);
-    }
+    initial = 0;
 
     sprintf(gs, "Initial objective function = %7.4f",obj);
     //the obj function is ending up as "nan" so let's test the variables
@@ -1860,20 +1904,10 @@ skip_adjcheck:
 
             temp_obj=0.0;
             temp_carbon=0.0;
+            initial = 0;
             poffset=soln[cand_poly];
 
-            //Changed start point from 0 because of weird data alignment (temp counts from zero, obj counts from 1) TODO
-            for (tp=1; tp<=NTP; tp++)   
-            {
-                change=((x_cutbfvol[st_key][px][offset][tp]*acres[cand_poly])-
-                        (x_cutbfvol[st_key][px][poffset][tp]*acres[cand_poly]))/TO_MMBFPY_DENOM;
-
-                temp_obj+=M1*pow(fabs(target_vol[tp]-(vol_per_period[tp]+change)),OBJ_EXPONENT);
-                temp_carbon+= carbon_per_period[tp];
-            }
-            if (CARBON_WEIGHT != 0.0) {
-                temp_obj = temp_obj/(CARBON_WEIGHT * temp_carbon);
-            }
+            temp_obj = compute_objective_value(initial);
 
             //=============================================================
             //  decide whether to accept candidate
@@ -1906,12 +1940,11 @@ skip_adjcheck:
 
                 x = rand() % 1000;
                 x = x / 1000.0;
-                ex=exp(-delta/temp);
-
+                ex = exp(-delta/temp);
 
                 if (x<ex)
                 {
-                    obj=temp_obj;
+                    obj = temp_obj;
                     obj_it_rand++;
 
                     soln[cand_poly]=offset;
