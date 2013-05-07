@@ -54,71 +54,56 @@ char gs[MAX_STR_LENGTH];
 char (*strata_map)[MAX_STR_LENGTH];
 char (*strata_link)[MAX_STR_LENGTH];
 
+////////   Global defs previously defined in harvest()
+int k,k1,k2,adj_poly,sta_key,pxa,offset,offadj,poffset;
+int px,st_key;
+char* st;
+char* sta;
+char* zero = "0";
+double obj,temp_obj,best_obj, temp_carbon;
+double delta;
+int obj_it = 0;
+int obj_it_rand = 0;
+int temp_change_it = 0;
+int obj_no_change = 0;
 
+int spec;
+int n_trials = 0;
+int rep,nrep;
+int cand_poly;
+double target_vol[NTP+1];
+float temp,alpha,end_temp,x,ex;
+float vol_per_period[NTP+1];
+float spec_vol_per_period[NTP+1][NSPECIES];
+float cub_vol_per_period[NTP+1];
+float spec_cub_vol_per_period[NTP+1][NSPECIES];
+float obj_per_period[NTP+1];
+float carbon_per_period[NTP+1];
+float livevol_per_period[NTP+1];
+float vol_per_period_check[NTP+1][NOFF+1];
+float cub_vol_per_period_check[NTP+1][NOFF+1];
+float carbon_per_period_check[NTP+1][NOFF+1];
+float livevol_per_period_check[NTP+1][NOFF+1];
+int soln[NPOLY+1];
+int soln_modified[NPOLY+1];
 
+// Added by APR
+char out_file_txt[MAX_STR_LENGTH];
+char out_file_summary[MAX_STR_LENGTH];
+double volume_total = 0.0;
 
+int debug_count1 = 0;
+int debug_count2 = 0;
+int debug_count3 = 0;
+int cub_debug_count1 = 0; //for the addition of cubic cut vol entries
+int cub_debug_count2 = 0;
+int index1 = 0;
 
-
-
-
-    int k,k1,k2,adj_poly,sta_key,pxa,offset,offadj,poffset;
-    int px,st_key;
-    char* st;
-    char* sta;
-    char* zero = "0";
-    double obj,temp_obj,best_obj, temp_carbon;
-    double delta;
-    int obj_it = 0;
-    int obj_it_rand = 0;
-    int temp_change_it = 0;
-    int obj_no_change = 0;
-
-    int spec;
-    int n_trials = 0;
-    int rep,nrep;
-    int cand_poly;
-    double target_vol[NTP+1];
-    float temp,alpha,end_temp,x,ex;
-    float vol_per_period[NTP+1];
-    float spec_vol_per_period[NTP+1][NSPECIES];
-    float cub_vol_per_period[NTP+1];
-    float spec_cub_vol_per_period[NTP+1][NSPECIES];
-    float obj_per_period[NTP+1];
-    float carbon_per_period[NTP+1];
-    float livevol_per_period[NTP+1];
-    float vol_per_period_check[NTP+1][NOFF+1];
-    float cub_vol_per_period_check[NTP+1][NOFF+1];
-    float carbon_per_period_check[NTP+1][NOFF+1];
-    float livevol_per_period_check[NTP+1][NOFF+1];
-    int soln[NPOLY+1];
-    int soln_modified[NPOLY+1];
-
-
-    // Added by APR
-    char out_file_txt[MAX_STR_LENGTH];
-    char out_file_summary[MAX_STR_LENGTH];
-    double volume_total = 0.0;
-
-    int debug_count1 = 0;
-    int debug_count2 = 0;
-    int debug_count3 = 0;
-    int cub_debug_count1 = 0; //for the addition of cubic cut vol entries
-    int cub_debug_count2 = 0;
-    int index1 = 0;
-
-    // Added by RDH for Age consideration
-    double total_acres = 0;
-    double advanced_acres[NTP+1];
-    // int prev_offset[NPOLY+1][NTP+1];
-    int (*prev_offset)[NTP+1];
-
-
-
-
-
-
-
-
+// Added by RDH for Age consideration
+double total_acres = 0;
+double advanced_acres[NTP+1];
+// int prev_offset[NPOLY+1][NTP+1];
+int (*prev_offset)[NTP+1];
 
 
 /******************************************************************************\
@@ -1746,7 +1731,7 @@ skipcount:
         {
              target_vol[tp] *= (100.0+boost_percent)/100.0;
         }
-        printf( "tp: %i, target vol: %f\n", tp, target_vol[tp] );
+        // printf( "tp: %i, target vol: %f\n", tp, target_vol[tp] );
     }
 
 
@@ -2016,7 +2001,6 @@ skip_adjcheck:
     }
     fclose(fin);
 
-
     // write out the summary info
     if ((fin = fopen(out_file_summary, "w")) == NULL)
     {
@@ -2090,12 +2074,12 @@ skip_adjcheck:
         // live, cut, carbon: write the data
         for ( tp = 0; tp <= NTP; tp++ )
         {
+            // Why the fabs()? Floating point rounding errors can leave a 0 value as -0.
             fprintf( fin, "%d\t%f\t%f\t%f\n", tp, fabs(livevol_per_period[tp]), fabs(vol_per_period[tp]), fabs(carbon_per_period[tp]) );
         }
     }
     fclose(fin);
 
-    // Why the fabs()? Floating point rounding errors can leave a 0 value as -0.
 
 } // end of harvest
 
