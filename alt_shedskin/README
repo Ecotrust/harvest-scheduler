@@ -1,0 +1,16 @@
+wget https://shedskin.googlecode.com/files/shedskin-0.9.3.tgz
+tar -xzvf shedskin-0.9.3.tgz
+cd shedskin-0.9.3
+sudo python setup.py install
+sudo apt-get install -y libgc-dev libgc1c2 libpcre++-dev libpcre++0
+wget https://shedskin.googlecode.com/files/shedskin-examples-0.9.3.tgz
+tar -xzvf shedskin-examples-0.9.3.tgz
+cd shedskin-examples-0.9.3/
+time python mandelbrot.py > /dev/null
+# real    0m10.429s
+
+shedskin mandelbrot.py
+# creates .cpp, .h and Makefile
+make
+time ./mandelbrot > /dev/null
+# real    0m0.168s
