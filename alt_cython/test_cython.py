@@ -3,6 +3,7 @@ import numpy as np
 
 if __name__ == '__main__':
 
+    """
     stand_data = np.array([  # list of stands
         [  # list of stand STATES
             [  # list of stand state time periods
@@ -29,45 +30,44 @@ if __name__ == '__main__':
             ],
         ],
     ])
-
+    """
 
     # consistently generate a random set
     np.random.seed(42)
-    stand_data = np.random.randint(10, size=(37,25,20,3))
+    # 4D: stands, rxs, time periods, variables
+    stand_data = np.random.randint(10, size=(37,25*6,20,3))
     stand_data = stand_data.astype(float)
 
     # pick a strategy for each stand state time period variable
+    # cumulative_maximize : target the absolute highest cumulative value
+    # evenflow            : minimize variance around a target
+    # cumulative_cost     : treated as cost; sum over all time periods
     strategies = ['cumulative_maximize', 'evenflow', 'cumulative_cost']
-    """
-    cumulative_maximize : target the absolute highest cumulative value
+    variable_names = ['carbon', 'harvest', 'cost']
+    weights = [5.0, 100.0, 0.2]
 
-    evenflow            : minimize variance around a target
+    # TODO need to define which variable is considered ("harvest")
+    # and when state is changed, check the adjacent stands for each time period
+    # penalize/avoid if they have overlapping harvests.
+    adjacency = [None for x in range(stand_data.shape[0])]
 
-    cumulative_cost     : treated as cost; sum over all time periods
-    """
+    # restrict valid states for certain stands
+    valid_states = [None for x in range(stand_data.shape[0])]
+    valid_states[0] = (0,1,2)  
+    valid_states[1] = (0,1,2)  
+    valid_states[2] = (0,1,2)  
 
-    # todo .. flow must specify weight of missed target vs 
-    targets = [
-        None,       # maximized variables don't have target; target is calculated
-        [5, 5, 5],  # flow_target is an array same length as time period
-        None        # maximize and costs variables don't need an explicit target
-    ]
+    optimal_stand_states = schedule(
+        stand_data,
+        strategies,
+        weights,
+        variable_names,
+        adjacency,
+        valid_states,
+        temp_min=0.01,
+        temp_max=10000.0,
+        steps=50000,
+        report_interval=500
+    )
 
-    weights = [5, 100, 1]
-
-    adjacency = []  # need to define which variable is considered ("harvest")
-     # and when state is changed, check the adjacent stands for each time period
-     # penalize/avoid if they have overlapping harvests.
-
-    mandatory_states = []  # when changing state, make sure these don't get altered
-
-    for i in range(1):
-        optimal_stand_states = schedule(
-            stand_data,
-            strategies,
-            targets,
-            weights,
-            adjacency
-        )
-
-        print optimal_stand_states
+    print optimal_stand_states

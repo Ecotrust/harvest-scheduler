@@ -10,7 +10,17 @@ cdef extern from "math.h":
 
 
 @cython.boundscheck(False)
-def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, weights, adjacency):
+def schedule(
+        np.ndarray[DTYPE_t, ndim=4] data,
+        strategies, 
+        weights,
+        variable_names,
+        adjacency,
+        valid_states,
+        float temp_min=0.01, 
+        float temp_max=1000, 
+        int steps=50000,
+        int report_interval=1000):
     cdef int num_stands = data.shape[0]
     cdef int num_states = data.shape[1]
     cdef int num_periods = data.shape[2]
@@ -19,30 +29,29 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
     stand_range = np.arange(num_stands)
 
     assert len(strategies) == num_variables
-    assert len(targets) == num_variables
     assert len(weights) == num_variables
 
     # initial state
     states = [random.randrange(num_states) for x in range(num_stands)]
+    # make sure each stand's state starts with a valid state
+    for s, state in enumerate(states):
+        if valid_states[s]:
+            states[s] = valid_states[s][0]
 
     cdef float best_metric = float('inf')  
     best_states = states[:]
+    best_metrics = []
     cdef float prev_metric = float('inf')
     prev_states = states[:]
 
-    cdef float temp_min = .01
-    cdef float temp_max = 1000.0
-    cdef float temp_factor = -math.log( temp_max / temp_min )
-    cdef int steps = 50000
-    cdef int step
-    cdef int report_interval = 1000
     cdef int accepts = 0
     cdef int improves = 0
-
+    cdef int step
     cdef float objective_metric
     cdef float delta
     cdef float rand
     cdef float temp
+    cdef float temp_factor = -math.log( temp_max / temp_min )
 
     #cdef np.ndarray[DTYPE_t, ndim=1] random_comparisons = np.random.uniform(size=steps) 
     #cdef np.ndarray[int, ndim=1] random_stands = np.random.random_integers(0,num_stands-1,size=steps)
@@ -57,13 +66,22 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
         # select the variable, sum to across time periods, take the max for each stand and add them
         theoretical_maxes[s] = data[:,:,:,s].sum(axis=2).max(axis=1).sum()
 
+     
+
     for step in range(steps):
 
         # determine temperature
         temp = temp_max * exp(temp_factor * step / steps)
 
         # pick a random stand and apply a random state to it
-        states[random.randrange(num_stands)] = random.randrange(num_states)
+        new_stand = random.randrange(num_stands)
+        if valid_states[new_stand]:
+            # this stand has restricted states, pick from the select list
+            new_state = random.choice(valid_states[new_stand])
+        else:
+            # pick anything
+            new_state = random.randrange(num_states)
+        states[new_stand] = new_state
         #states[random_stands[step]] = random_states[step]
 
         # use numpy indexing to select only the desired state of each stand
@@ -120,9 +138,10 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
             improve = False
 
         if step % report_interval == 0:
-            print "step: %6d accepts:  %d improves:  %d metric:  %1.2f temp:  %1.2f" % (step, 
+            print "step: %-7d accepts: %-5d improves: %-5d metric: %-1.2f temp: %-1.2f" % (step, 
                     accepts, improves, prev_metric, temp)
-            print "   ", objective_metrics
+            print "   weighted best: ", zip(variable_names, best_metrics)
+            print "        raw best: ", zip(variable_names, [a/b for a,b in zip(best_metrics, weights)])
             print 
             improves = 0
             accepts = 0
@@ -141,5 +160,6 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
             best = True
             best_states = states[:]
             best_metric = objective_metric
+            best_metrics = objective_metrics
 
     return best_metric, best_states
