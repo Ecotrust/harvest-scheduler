@@ -30,6 +30,12 @@ if __name__ == '__main__':
         ],
     ])
 
+
+    # consistently generate a random set
+    np.random.seed(42)
+    stand_data = np.random.randint(10, size=(37,25,20,3))
+    stand_data = stand_data.astype(float)
+
     # pick a strategy for each stand state time period variable
     strategies = ['cumulative_maximize', 'flow_target', 'cumulative_cost']
     """
@@ -56,7 +62,12 @@ if __name__ == '__main__':
 
     mandatory_states = []  # when changing state, make sure these don't get altered
 
-    optimal_stand_states = schedule(stand_data, strategies,
-                                    targets, weights, adjacency)
+    optimal_stand_states = schedule(
+        stand_data,
+        strategies,
+        targets,
+        weights,
+        adjacency
+    )
 
     print optimal_stand_states
