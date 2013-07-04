@@ -4,10 +4,11 @@ import numpy as np
 if __name__ == '__main__':
 
     """
-    stand_data = np.array([  # list of stands
-        [  # list of stand STATES
-            [  # list of stand rx time periods
-                [12, 6, 5],  # <-- list of stand rx time period variables
+    stand_data = np.array(
+    [  # list of stands
+        [  # list of rxs
+            [  # list of time periods
+                [12, 6, 5],  # <-- list of variable values
                 [12, 0, 6],
                 [3, 7, 4],
             ],
@@ -17,13 +18,13 @@ if __name__ == '__main__':
                 [10, 9, 3],
             ],
         ],
-        [  # stand 2
-            [  # rx 1
+        [   # stand 2
+            [   # rx 1
                 [12, 6, 5],  # time period 1
                 [1, 0, 6],
                 [1, 7, 4],
             ],
-            [  # rx 2
+            [   # rx 2
                 [11, 2, 2],
                 [3, 1, 6],
                 [9, 9, 3],
@@ -35,7 +36,9 @@ if __name__ == '__main__':
     # consistently generate a random set
     np.random.seed(42)
     # 4D: stands, rxs, time periods, variables
-    stand_data = np.random.randint(10, size=(37,25,20,3))
+    # gaussian distribution; mean of 10, stddev of 1
+    stand_data = np.random.randn(83,25,20,3) + 10
+
     stand_data = stand_data.astype(float)
 
     # pick a strategy for each stand rx time period variable
@@ -65,9 +68,9 @@ if __name__ == '__main__':
         variable_names,
         adjacency,
         valid_rxs,
-        temp_min=0.01,
-        temp_max=2000.0,
-        steps=500000,
+        temp_min=0.10,
+        temp_max=300.0,
+        steps=20000,
         report_interval=1000
     )
 

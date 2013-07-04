@@ -1,3 +1,5 @@
+# encoding: utf-8
+# cython: profile=True
 from libc cimport math
 import random
 cimport numpy as np
@@ -10,6 +12,7 @@ cdef extern from "math.h":
 
 
 @cython.boundscheck(False)
+@cython.wraparound(False)
 def schedule(
         np.ndarray[DTYPE_t, ndim=4] data,
         strategies, 
@@ -61,6 +64,7 @@ def schedule(
     for s, strategy in enumerate(strategies):
         # select the variable, sum to across time periods, take the max for each stand and add them
         theoretical_maxes[s] = data[:,:,:,s].sum(axis=2).max(axis=1).sum()
+    print theoretical_maxes
 
     adjacency_penalty = 0
 
@@ -137,12 +141,12 @@ def schedule(
         elif exp(-delta/temp) > rand:  # within temperature, accept it
             accept = True
             improve = False
-
-        if step % report_interval == 0:
-            print "step: %-7d accepts: %-5d improves: %-5d metric:   %-6.2f    temp: %-1.2f" % (step, 
-                    accepts, improves, prev_metric, temp)
+ 
+        if (step - 1) % report_interval == 0:
+            print "step: %-7d accepts: %-5d improves: %-5d best_metric:   %-6.2f    temp: %-1.2f" % (step, 
+                    accepts, improves, best_metric, temp)
             print "   weighted best: ", zip(variable_names, best_metrics)
-            print "        raw best: ", zip(variable_names, [a/b for a,b in zip(best_metrics, weights)])
+            print " unweighted best: ", zip(variable_names, [a/b for a,b in zip(best_metrics, weights)])
             print 
             improves = 0
             accepts = 0
