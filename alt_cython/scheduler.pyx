@@ -31,7 +31,7 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
     prev_states = states[:]
 
     cdef float temp_min = .01
-    cdef float temp_max = 1.0
+    cdef float temp_max = 10.0
     cdef float temp_factor = -math.log( temp_max / temp_min )
     cdef int steps = 10000
     cdef int step
@@ -43,7 +43,14 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
     cdef float delta
     cdef float rand
     cdef float temp
-    cdef np.ndarray[DTYPE_t, ndim=1] random_numbers = np.random.uniform(size=steps) 
+
+    #cdef np.ndarray[DTYPE_t, ndim=1] random_comparisons = np.random.uniform(size=steps) 
+    #cdef np.ndarray[int, ndim=1] random_stands = np.random.random_integers(0,num_stands-1,size=steps)
+    #cdef np.ndarray[int, ndim=1] random_states = np.random.random_integers(0,num_states-1,size=steps)
+
+    cdef np.ndarray[DTYPE_t, ndim=1] property_stddevs
+    cdef np.ndarray[DTYPE_t, ndim=2] cumulative_by_time_period
+    cdef np.ndarray[DTYPE_t, ndim=3] selected
 
     for step in range(steps):
 
@@ -52,6 +59,7 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
 
         # pick a random stand and apply a random state to it
         states[random.randrange(num_stands)] = random.randrange(num_states)
+        #states[random_stands[step]] = random_states[step]
 
         # use numpy indexing to select only the desired state of each stand
         # effectively collapses array on states axis to a 3D array (stands x periods x variables)
@@ -86,7 +94,8 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
 
         delta = objective_metric - prev_metric
 
-        rand = random_numbers[step]
+        rand = np.random.uniform()
+        #rand = random_comparisons[step]
         if delta < 0.0:  # an improvement
             accept = True
             improve = True

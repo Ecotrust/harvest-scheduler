@@ -62,12 +62,13 @@ if __name__ == '__main__':
 
     mandatory_states = []  # when changing state, make sure these don't get altered
 
-    optimal_stand_states = schedule(
-        stand_data,
-        strategies,
-        targets,
-        weights,
-        adjacency
-    )
+    for i in range(1):
+        optimal_stand_states = schedule(
+            stand_data,
+            strategies,
+            targets,
+            weights,
+            adjacency
+        )
 
-    print optimal_stand_states
+        print optimal_stand_states
