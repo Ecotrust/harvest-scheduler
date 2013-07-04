@@ -37,12 +37,11 @@ if __name__ == '__main__':
     stand_data = stand_data.astype(float)
 
     # pick a strategy for each stand state time period variable
-    strategies = ['cumulative_maximize', 'flow_target', 'cumulative_cost']
+    strategies = ['cumulative_maximize', 'evenflow', 'cumulative_cost']
     """
     cumulative_maximize : target the absolute highest cumulative value
 
-    flow_maximize        : minimize variance WHILE targeting highest cumulative
-    flow_target          : minimize variance WHILE targeting user-specified cumulative
+    evenflow            : minimize variance around a target
 
     cumulative_cost     : treated as cost; sum over all time periods
     """
@@ -54,7 +53,7 @@ if __name__ == '__main__':
         None        # maximize and costs variables don't need an explicit target
     ]
 
-    weights = [1, 2, 1]
+    weights = [5, 100, 1]
 
     adjacency = []  # need to define which variable is considered ("harvest")
      # and when state is changed, check the adjacent stands for each time period

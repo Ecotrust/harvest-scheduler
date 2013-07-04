@@ -31,9 +31,9 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
     prev_states = states[:]
 
     cdef float temp_min = .01
-    cdef float temp_max = 10.0
+    cdef float temp_max = 1000.0
     cdef float temp_factor = -math.log( temp_max / temp_min )
-    cdef int steps = 10000
+    cdef int steps = 50000
     cdef int step
     cdef int report_interval = 1000
     cdef int accepts = 0
@@ -51,6 +51,11 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
     cdef np.ndarray[DTYPE_t, ndim=1] property_stddevs
     cdef np.ndarray[DTYPE_t, ndim=2] cumulative_by_time_period
     cdef np.ndarray[DTYPE_t, ndim=3] selected
+
+    theoretical_maxes = [0 for x in range(num_variables)]
+    for s, strategy in enumerate(strategies):
+        # select the variable, sum to across time periods, take the max for each stand and add them
+        theoretical_maxes[s] = data[:,:,:,s].sum(axis=2).max(axis=1).sum()
 
     for step in range(steps):
 
@@ -71,22 +76,33 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
         # stands x sum of each variable over time
         # cumulative_by_stand = selected.sum(axis=1)
 
-        # 1D array
-        # useful for cumulative maximize/target
-        # property-level cumulative sum of each variable
-        # property_cumulative = cumulative_by_stand.sum(axis=0)
-
         # 2D array
         # time periods x sum of each variable over all stands
         cumulative_by_time_period = selected.sum(axis=0)
+
+        # 1D array
+        # useful for cumulative maximize/target
+        # property-level cumulative sum of each variable
+        property_cumulative = cumulative_by_time_period.sum(axis=0)
 
         # 1D array
         # useful for evenflow
         # property-level standard deviation of each variable over time
         property_stddevs = cumulative_by_time_period.std(axis=0)
 
-        # TODO just for testing
-        objective_metric = property_stddevs[0]
+        objective_metrics = []
+        for s, strategy in enumerate(strategies):
+            if strategy == 'cumulative_maximize':
+                # compare the value to the theoretical maximum
+                objective_metrics.append((theoretical_maxes[s] - property_cumulative[s]) * weights[s])
+            elif strategy == 'evenflow':
+                # minimize the standard deviation
+                objective_metrics.append(property_stddevs[s] * weights[s])
+            elif strategy == 'cumulative_cost':
+                # just take cumulative cost
+                objective_metrics.append(property_cumulative[s] * weights[s])
+
+        objective_metric = sum(objective_metrics)
 
         accept = False
         improve = False
@@ -106,6 +122,8 @@ def schedule(np.ndarray[DTYPE_t, ndim=4] data not None, strategies, targets, wei
         if step % report_interval == 0:
             print "step: %6d accepts:  %d improves:  %d metric:  %1.2f temp:  %1.2f" % (step, 
                     accepts, improves, prev_metric, temp)
+            print "   ", objective_metrics
+            print 
             improves = 0
             accepts = 0
 
