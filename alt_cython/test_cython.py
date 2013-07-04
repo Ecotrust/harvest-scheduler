@@ -35,11 +35,13 @@ if __name__ == '__main__':
     """
     cumulative_maximize : target the absolute highest cumulative value
 
-    flow_target         : minimize variance around a target
+    flow_maximize        : minimize variance WHILE targeting highest cumulative
+    flow_target          : minimize variance WHILE targeting user-specified cumulative
 
     cumulative_cost     : treated as cost; sum over all time periods
     """
 
+    # todo .. flow must specify weight of missed target vs 
     targets = [
         None,       # maximized variables don't have target; target is calculated
         [5, 5, 5],  # flow_target is an array same length as time period
@@ -49,7 +51,7 @@ if __name__ == '__main__':
     weights = [1, 2, 1]
 
     adjacency = []  # need to define which variable is considered ("harvest")
-     # and when state is changed, check the adjacent stands for each time period 
+     # and when state is changed, check the adjacent stands for each time period
      # penalize/avoid if they have overlapping harvests.
 
     mandatory_states = []  # when changing state, make sure these don't get altered
