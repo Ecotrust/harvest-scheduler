@@ -1,45 +1,9 @@
 from scheduler import schedule
-import numpy as np
+import prep_data
 
 if __name__ == '__main__':
-
-    """
-    stand_data = np.array(
-    [  # list of stands
-        [  # list of rxs
-            [  # list of time periods
-                [12, 6, 5],  # <-- list of variable values
-                [12, 0, 6],
-                [3, 7, 4],
-            ],
-            [
-                [11, 2, 2],
-                [2, 1, 6],
-                [10, 9, 3],
-            ],
-        ],
-        [   # stand 2
-            [   # rx 1
-                [12, 6, 5],  # time period 1
-                [1, 0, 6],
-                [1, 7, 4],
-            ],
-            [   # rx 2
-                [11, 2, 2],
-                [3, 1, 6],
-                [9, 9, 3],
-            ],
-        ],
-    ])
-    """
-
-    # consistently generate a random set
-    np.random.seed(42)
     # 4D: stands, rxs, time periods, variables
-    # gaussian distribution; mean of 10, stddev of 1
-    stand_data = np.random.randn(83,25,20,3) + 10
-
-    stand_data = stand_data.astype(float)
+    stand_data = prep_data.from_files()
 
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
@@ -53,13 +17,13 @@ if __name__ == '__main__':
     # and when rx is changed, check the adjacent stands for each time period
     # penalize/avoid if they have overlapping harvests.
     adjacency = [None for x in range(stand_data.shape[0])]
-    adjacency[4] = (3,2,4) # avoid cutting stand 4 when 1,2,3 have harvests?
+    adjacency[4] = (3, 2, 4)  # avoid cutting stand 4 when 1,2,3 have harvests?
 
     # restrict valid rxs for certain stands
     valid_rxs = [None for x in range(stand_data.shape[0])]
-    valid_rxs[0] = (0,1,2)  
-    valid_rxs[1] = (0,1,2)  
-    valid_rxs[2] = (0,1,2)  
+    valid_rxs[0] = (0, 1, 2)
+    valid_rxs[1] = (0, 1, 2)
+    valid_rxs[2] = (0, 1, 2)
 
     optimal_stand_rxs = schedule(
         stand_data,
