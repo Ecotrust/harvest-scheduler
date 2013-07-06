@@ -142,7 +142,7 @@ def schedule(
             accept = True
             improve = False
  
-        if (step - 1) % report_interval == 0:
+        if step == 1 or (step % report_interval == 0 and step > 0):
             print "step: %-7d accepts: %-5d improves: %-5d best_metric:   %-6.2f    temp: %-1.2f" % (step, 
                     accepts, improves, best_metric, temp)
             print "   weighted best: ", zip(variable_names, best_metrics)

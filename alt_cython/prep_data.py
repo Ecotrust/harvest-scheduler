@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import csv
+import json
 
 
 def from_random():
@@ -52,7 +53,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     stands = sf.shapes()
 
     # TODO
-    rxs = range(1,26)
+    rxs = range(1, 26)
 
     field_nums = {
         'acres': None,
@@ -87,35 +88,51 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     ],
     """
     property_stands = []
+    axis_map = {'rx': []}
     for i, record in enumerate(sf.iterRecords()):
         cond = record[field_nums['cond']]
+        acres = record[field_nums['acres']]
         stand_rxs = []
         for rx in rxs:
-            rx_timeperiods = []
             # assumes variant and siteindex are constant and already weeded out of the csv files
             csv_path = glob.glob(os.path.join(csvdir, "*rx%s_cond%s*" % (rx, cond)))[0]
-            fvsdata = csv.DictReader(open(csv_path, 'rb'), delimiter=',', quotechar='"')
 
-            # pandas could help here but trying to reduce dependencies
-            for line in fvsdata:
-                vars = []
-                offset = line['offset']
-                # TODO other offsets?
-                if offset == "00":
-                    try:
-                        f = float(line['FIREHZD'])
-                        c = float(line['total_stand_carbon'])
-                        t = float(line['removed_merch_ft3'])
-                        vars.append(f)
-                        vars.append(c)
-                        vars.append(t)
-                    except:
-                        continue
-                    rx_timeperiods.append(vars)
+            if rx == 1:
+                # for grow only, offsets are pointless
+                available_offsets = ['00']
+            else:
+                available_offsets = ['00', '01', '02', '03', '04']
 
-            stand_rxs.append(rx_timeperiods)
+            for offset in available_offsets:
+                rx_timeperiods = []
+                # ugh , open each file 6 times, gross
+                # pandas could help here but trying to reduce dependencies
+                fvsdata = csv.DictReader(open(csv_path, 'rb'), delimiter=',', quotechar='"')
+                for line in fvsdata:
+                    vars = []
+                    if offset == line['offset']:
+                        try:
+                            f = float(line['FIREHZD']) * acres
+                            c = float(line['total_stand_carbon']) * acres
+                            t = float(line['removed_merch_ft3']) * acres / 1000.0
+                            vars.append(c)
+                            vars.append(t)
+                            vars.append(t)
+                            vars.append(f)
+                        except:
+                            continue
+                        rx_timeperiods.append(vars)
+
+                axis_map['rx'].append((rx, offset))
+                stand_rxs.append(rx_timeperiods)
 
         property_stands.append(stand_rxs)
 
     arr = np.array(property_stands)
-    import ipdb; ipdb.set_trace()
+
+    # caching
+    np.save('arr.cache', arr)
+    with open('axis_map.cache', 'w') as fh:
+        fh.write(json.dumps(axis_map, indent=2))
+
+    return arr, axis_map
