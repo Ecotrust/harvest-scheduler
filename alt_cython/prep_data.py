@@ -141,10 +141,10 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     arr = np.array(property_stands)
 
     # caching
-    np.save('arr.cache', arr)
-    with open('axis_map.cache', 'w') as fh:
+    np.save('cache.array', arr)
+    with open('cache.axis_map', 'w') as fh:
         fh.write(json.dumps(axis_map, indent=2))
-    with open('valid_mgmts.cache', 'w') as fh:
+    with open('cache.valid_mgmts', 'w') as fh:
         fh.write(json.dumps(valid_mgmts, indent=2))
 
     return arr, axis_map, valid_mgmts

@@ -6,9 +6,9 @@ import prep_data
 if __name__ == '__main__':
     # 4D: stands, rxs, time periods, variables
     try:
-        stand_data = np.load('arr.cache.npy')
-        axis_map = json.loads(open('axis_map.cache').read())
-        valid_mgmts = json.loads(open('valid_mgmts.cache').read())
+        stand_data = np.load('cache.array.npy')
+        axis_map = json.loads(open('cache.axis_map').read())
+        valid_mgmts = json.loads(open('cache.valid_mgmts').read())
     except:
         stand_data, axis_map, valid_mgmts = prep_data.from_files()
 
