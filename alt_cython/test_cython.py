@@ -8,8 +8,9 @@ if __name__ == '__main__':
     try:
         stand_data = np.load('arr.cache.npy')
         axis_map = json.loads(open('axis_map.cache').read())
+        valid_rxs = json.loads(open('valid_rxs.cache').read())
     except:
-        stand_data, axis_map = prep_data.from_files()
+        stand_data, axis_map, valid_rxs = prep_data.from_files()
 
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     adjacency[4] = (3, 2, 4)  # avoid cutting stand 4 when 1,2,3 have harvests?
 
     # restrict valid rxs for certain stands
-    valid_rxs = [None for x in range(stand_data.shape[0])]
+    # valid_rxs = [None for x in range(stand_data.shape[0])]
     # valid_rxs[0] = (0, 1, 2)
     # valid_rxs[1] = (0, 1, 2)
     # valid_rxs[2] = (0, 1, 2)
@@ -41,7 +42,7 @@ if __name__ == '__main__':
         temp_min=.1,
         temp_max=50000.0,
         steps=100000,
-        report_interval=5000
+        report_interval=10000
     )
 
     print best

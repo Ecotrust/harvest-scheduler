@@ -50,7 +50,6 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     import shapefile
     import glob
     sf = shapefile.Reader(shp)
-    stands = sf.shapes()
 
     # TODO
     rxs = range(1, 26)
@@ -73,26 +72,33 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
 
     assert None not in field_nums.values()
 
-    """
-    [   # stand 2
-        [   # rx 1
-            [12, 6, 5],  # time period 1
-            [1, 0, 6],
-            [1, 7, 4],
-        ],
-        [   # rx 2
-            [11, 2, 2],
-            [3, 1, 6],
-            [9, 9, 3],
-        ],
-    ],
-    """
-    property_stands = []
+    # populate axis map
     axis_map = {'rx': []}
+    for rx in rxs:
+        if rx == 1:
+            # for grow only, offsets are pointless
+            available_offsets = ['00']
+        else:
+            available_offsets = ['00', '01', '02', '03', '04']
+
+        for offset in available_offsets:
+            axis_map['rx'].append((rx, offset))
+
+    property_stands = []
+    valid_rxs = []
     for i, record in enumerate(sf.iterRecords()):
         cond = record[field_nums['cond']]
         acres = record[field_nums['acres']]
+        raw_restricted_rxs = record[field_nums['rx']]
+        try:
+            restricted_rxs = [int(x) for x in raw_restricted_rxs.split(",")]
+        except ValueError:
+            restricted_rxs = []
+        temporary_rx_list = []
+        mgmt_id = 0
+
         stand_rxs = []
+
         for rx in rxs:
             # assumes variant and siteindex are constant and already weeded out of the csv files
             csv_path = glob.glob(os.path.join(csvdir, "*rx%s_cond%s*" % (rx, cond)))[0]
@@ -105,7 +111,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
 
             for offset in available_offsets:
                 rx_timeperiods = []
-                # ugh , open each file 6 times, gross
+                # ugh , open each file 5 times, gross
                 # pandas could help here but trying to reduce dependencies
                 fvsdata = csv.DictReader(open(csv_path, 'rb'), delimiter=',', quotechar='"')
                 for line in fvsdata:
@@ -119,13 +125,17 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
                             vars.append(t)
                             vars.append(t)
                             vars.append(f)
+                            # TODO: calculate actual cost!
                         except:
                             continue
                         rx_timeperiods.append(vars)
 
-                axis_map['rx'].append((rx, offset))
+                if rx in restricted_rxs:
+                    temporary_rx_list.append(mgmt_id)
+                mgmt_id += 1
                 stand_rxs.append(rx_timeperiods)
 
+        valid_rxs.append(temporary_rx_list)
         property_stands.append(stand_rxs)
 
     arr = np.array(property_stands)
@@ -134,5 +144,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     np.save('arr.cache', arr)
     with open('axis_map.cache', 'w') as fh:
         fh.write(json.dumps(axis_map, indent=2))
+    with open('valid_rxs.cache', 'w') as fh:
+        fh.write(json.dumps(valid_rxs, indent=2))
 
-    return arr, axis_map
+    return arr, axis_map, valid_rxs

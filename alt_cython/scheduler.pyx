@@ -33,6 +33,9 @@ def schedule(
 
     assert len(strategies) == num_variables
     assert len(weights) == num_variables
+    assert len(variable_names) == num_variables
+    assert len(adjacency) == num_stands
+    assert len(valid_rxs) == num_stands
 
     # initial rx
     rxs = [random.randrange(num_rxs) for x in range(num_stands)]
@@ -142,8 +145,8 @@ def schedule(
             accept = True
             improve = False
  
-        if step == 1 or (step % report_interval == 0 and step > 0):
-            print "step: %-7d accepts: %-5d improves: %-5d best_metric:   %-6.2f    temp: %-1.2f" % (step, 
+        if (step+1) % report_interval == 0 and step > 0:
+            print "step: %-7d accepts: %-5d improves: %-5d best_metric:   %-6.2f    temp: %-1.2f" % (step+1, 
                     accepts, improves, best_metric, temp)
             print "   weighted best: ", zip(variable_names, best_metrics)
             print " unweighted best: ", zip(variable_names, [a/b for a,b in zip(best_metrics, weights)])
