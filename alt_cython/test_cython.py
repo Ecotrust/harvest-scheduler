@@ -8,9 +8,9 @@ if __name__ == '__main__':
     try:
         stand_data = np.load('arr.cache.npy')
         axis_map = json.loads(open('axis_map.cache').read())
-        valid_rxs = json.loads(open('valid_rxs.cache').read())
+        valid_mgmts = json.loads(open('valid_mgmts.cache').read())
     except:
-        stand_data, axis_map, valid_rxs = prep_data.from_files()
+        stand_data, axis_map, valid_mgmts = prep_data.from_files()
 
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
@@ -26,11 +26,11 @@ if __name__ == '__main__':
     adjacency = [None for x in range(stand_data.shape[0])]
     adjacency[4] = (3, 2, 4)  # avoid cutting stand 4 when 1,2,3 have harvests?
 
-    # restrict valid rxs for certain stands
-    # valid_rxs = [None for x in range(stand_data.shape[0])]
-    # valid_rxs[0] = (0, 1, 2)
-    # valid_rxs[1] = (0, 1, 2)
-    # valid_rxs[2] = (0, 1, 2)
+    # restrict managment options for certain stands
+    # valid_mgmts = [None for x in range(stand_data.shape[0])]
+    # valid_mgmts[0] = (0, 1, 2)
+    # valid_mgmts[1] = (0, 1, 2)
+    # valid_mgmts[2] = (0, 1, 2)
 
     best, optimal_stand_rxs = schedule(
         stand_data,
@@ -38,7 +38,7 @@ if __name__ == '__main__':
         weights,
         variable_names,
         adjacency,
-        valid_rxs,
+        valid_mgmts,
         temp_min=.1,
         temp_max=50000.0,
         steps=100000,
@@ -47,4 +47,4 @@ if __name__ == '__main__':
 
     print best
     for osrx in optimal_stand_rxs:
-        print axis_map['rx'][osrx]
+        print axis_map['mgmt'][osrx]

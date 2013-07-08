@@ -73,7 +73,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     assert None not in field_nums.values()
 
     # populate axis map
-    axis_map = {'rx': []}
+    axis_map = {'mgmt': []}
     for rx in rxs:
         if rx == 1:
             # for grow only, offsets are pointless
@@ -82,10 +82,10 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
             available_offsets = ['00', '01', '02', '03', '04']
 
         for offset in available_offsets:
-            axis_map['rx'].append((rx, offset))
+            axis_map['mgmt'].append((rx, offset))
 
     property_stands = []
-    valid_rxs = []
+    valid_mgmts = []
     for i, record in enumerate(sf.iterRecords()):
         cond = record[field_nums['cond']]
         acres = record[field_nums['acres']]
@@ -94,10 +94,10 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
             restricted_rxs = [int(x) for x in raw_restricted_rxs.split(",")]
         except ValueError:
             restricted_rxs = []
-        temporary_rx_list = []
+        temporary_mgmt_list = []
         mgmt_id = 0
 
-        stand_rxs = []
+        stand_mgmts = []
 
         for rx in rxs:
             # assumes variant and siteindex are constant and already weeded out of the csv files
@@ -110,7 +110,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
                 available_offsets = ['00', '01', '02', '03', '04']
 
             for offset in available_offsets:
-                rx_timeperiods = []
+                mgmt_timeperiods = []
                 # ugh , open each file 5 times, gross
                 # pandas could help here but trying to reduce dependencies
                 fvsdata = csv.DictReader(open(csv_path, 'rb'), delimiter=',', quotechar='"')
@@ -128,15 +128,15 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
                             # TODO: calculate actual cost!
                         except:
                             continue
-                        rx_timeperiods.append(vars)
+                        mgmt_timeperiods.append(vars)
 
                 if rx in restricted_rxs:
-                    temporary_rx_list.append(mgmt_id)
+                    temporary_mgmt_list.append(mgmt_id)
                 mgmt_id += 1
-                stand_rxs.append(rx_timeperiods)
+                stand_mgmts.append(mgmt_timeperiods)
 
-        valid_rxs.append(temporary_rx_list)
-        property_stands.append(stand_rxs)
+        valid_mgmts.append(temporary_mgmt_list)
+        property_stands.append(stand_mgmts)
 
     arr = np.array(property_stands)
 
@@ -144,7 +144,7 @@ def from_files(shp="data/test_stands", csvdir="data/csvs"):
     np.save('arr.cache', arr)
     with open('axis_map.cache', 'w') as fh:
         fh.write(json.dumps(axis_map, indent=2))
-    with open('valid_rxs.cache', 'w') as fh:
-        fh.write(json.dumps(valid_rxs, indent=2))
+    with open('valid_mgmts.cache', 'w') as fh:
+        fh.write(json.dumps(valid_mgmts, indent=2))
 
-    return arr, axis_map, valid_rxs
+    return arr, axis_map, valid_mgmts
