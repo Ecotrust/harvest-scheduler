@@ -1,4 +1,5 @@
-from scheduler import schedule
+#from scheduler import schedule
+from scheduler_purepy import schedule
 import numpy as np
 import json
 import prep_data
