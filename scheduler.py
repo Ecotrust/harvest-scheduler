@@ -95,24 +95,30 @@ def schedule(
 
         objective_metrics = []
         for s, strategy in enumerate(strategies):
-            maxval = theoretical_maxes[s]
-            minval = theoretical_mins[s]
-            cumval = property_cumulative[s]
             # note that all metrics must return some value that is effectively scaled 0-100
+
             if strategy == 'cumulative_maximize':
                 # compare the value to the theoretical maximum
+                maxval = theoretical_maxes[s]
+                minval = theoretical_mins[s]
+                cumval = property_cumulative[s]
                 objective_metrics.append(100*((maxval - cumval) / float(maxval - minval)) * weights[s])
+
             elif strategy == 'evenflow':
                 values = cumulative_by_time_period[:, s]
                 # property-level standard deviation of THIS variable over time
                 property_stddev = values.std(axis=0)
                 # property-level range of THIS variable over time
                 property_range = values.ptp(axis=0)
-                # how wide is +/- 1 std dev compared to 68.2% of total range
-                # larger = data is distributed across much of the range
-                objective_metrics.append(100 * ((property_stddev * 2)/ (property_range*0.682)) * weights[s])
+                # how wide is +/- 1 std dev compared to the total range
+                # larger = data is distributed across more of the range
+                objective_metrics.append(100 * ((property_stddev*2) / property_range) * weights[s])
+
             elif strategy == 'cumulative_minimize':
                 # compare the value to the theoretical minimum
+                maxval = theoretical_maxes[s]
+                minval = theoretical_mins[s]
+                cumval = property_cumulative[s]
                 objective_metrics.append(100*((cumval - minval) / float(maxval - minval)) * weights[s])
 
         objective_metric = sum(objective_metrics)

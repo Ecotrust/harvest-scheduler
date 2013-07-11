@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # cumulative_minimize : treated as cost; target the lowest cumulative value
     strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow', 'cumulative_minimize']
     variable_names = ['carbon', 'harvest', 'harvest flow', 'cost']
-    weights = [1.0, 1.0, 1.0, .01]
+    weights = [1.0, 1.0, 0.0000001, .01]
 
     # TODO need to define which variable is considered ("harvest")
     # and when rx is changed, check the adjacent stands for each time period
