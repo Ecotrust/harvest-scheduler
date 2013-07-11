@@ -1,11 +1,13 @@
-#from scheduler import schedule
-from scheduler_purepy import schedule
+from scheduler import schedule
 import numpy as np
 import json
 import prep_data
 
 if __name__ == '__main__':
+
     # 4D: stands, rxs, time periods, variables
+
+    # Option 1: load from files
     try:
         stand_data = np.load('cache.array.npy')
         axis_map = json.loads(open('cache.axis_map').read())
@@ -13,13 +15,16 @@ if __name__ == '__main__':
     except:
         stand_data, axis_map, valid_mgmts = prep_data.from_files()
 
+    # Option 2: random data
+    # stand_data, axis_map, valid_mgmts = prep_data.from_random()
+
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
     # evenflow            : minimize variance around a target
-    # cumulative_cost     : treated as cost; sum over all time periods
-    strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow', 'cumulative_cost']
+    # cumulative_minimize : treated as cost; target the lowest cumulative value
+    strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow', 'cumulative_minimize']
     variable_names = ['carbon', 'harvest', 'harvest flow', 'cost']
-    weights = [1.0, 100.0, 300.0, 1.0]
+    weights = [1.0, 1.0, 0.1, .01]
 
     # TODO need to define which variable is considered ("harvest")
     # and when rx is changed, check the adjacent stands for each time period
@@ -40,10 +45,10 @@ if __name__ == '__main__':
         variable_names,
         adjacency,
         valid_mgmts,
-        temp_min=.1,
-        temp_max=5000.0,
-        steps=50000,
-        report_interval=10000
+        temp_min=0.01,
+        temp_max=10,
+        steps=1000000,
+        report_interval=100000
     )
 
     print best

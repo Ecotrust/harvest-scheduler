@@ -38,4 +38,5 @@ tests/data/*
 alt_cython/scheduler.c
 *.swp
 alt_cython/data/*
+data/*
 cache.*
