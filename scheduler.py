@@ -89,10 +89,6 @@ def schedule(
         # property-level cumulative sum of each variable
         property_cumulative = cumulative_by_time_period.sum(axis=0)
 
-        # 1D array
-        # useful for evenflow
-        # property_stddevs = cumulative_by_time_period.std(axis=0)
-
         objective_metrics = []
         for s, strategy in enumerate(strategies):
             # note that all cumulative metrics return some value that is effectively scaled 0-100
