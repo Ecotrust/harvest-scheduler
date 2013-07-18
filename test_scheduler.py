@@ -1,7 +1,7 @@
-from scheduler import schedule
+from scheduler.scheduler import schedule
+from scheduler import prep_data
 import numpy as np
 import json
-import prep_data
 
 if __name__ == '__main__':
 
