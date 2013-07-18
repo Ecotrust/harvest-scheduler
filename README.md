@@ -24,7 +24,7 @@ The input data for the harvest scheduler is a 4D Array.
 It is easier to visualize this 
 as multiple 3D arrays, one of each variable of interest.
 
-![ScreenShot](https://raw.github.com/Ecotrust/harvest-scheduler/master/img/4DArray.png)
+![ScreenShot](https://raw.github.com/Ecotrust/harvest-scheduler/master/img/4Darray.png)
 
 The scheduler will
 

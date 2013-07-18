@@ -1,1 +1,0 @@
-Copyright for schedule.c is assumed to belong to the original author, John Sessions.
