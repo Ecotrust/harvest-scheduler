@@ -8,21 +8,31 @@ if __name__ == '__main__':
     # 4D: stands, rxs, time periods, variables
 
     # Option 1: load from files
-    try:
-        stand_data = np.load('cache.array.npy')
-        axis_map = json.loads(open('cache.axis_map').read())
-        valid_mgmts = json.loads(open('cache.valid_mgmts').read())
-    except:
-        stand_data, axis_map, valid_mgmts = prep_data.from_files()
+    # try:
+    #     stand_data = np.load('cache.array.npy')
+    #     axis_map = json.loads(open('cache.axis_map').read())
+    #     valid_mgmts = json.loads(open('cache.valid_mgmts').read())
+    # except:
+    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv()
 
     # Option 2: random data
     # stand_data, axis_map, valid_mgmts = prep_data.from_random()
 
+    # Option 3: load from sqlite db
+    # try:
+    #     stand_data = np.load('cache.array.npy')
+    #     axis_map = json.loads(open('cache.axis_map').read())
+    #     valid_mgmts = json.loads(open('cache.valid_mgmts').read())
+    # except:
+    #     stand_data, axis_map, valid_mgmts = prep_data.from_shp_sqlite()
+
+    ###########################################################################
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
     # evenflow            : minimize variance around a target
     # cumulative_minimize : treated as cost; target the lowest cumulative value
-    strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow', 'cumulative_minimize']
+    strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow_target', 'cumulative_minimize']
+    strategy_variables = [None, None, 200, None]
     variable_names = ['carbon', 'harvest', 'harvest flow', 'cost']
     weights = [1.0, 1.0, 1.0, .01]
 
@@ -45,10 +55,11 @@ if __name__ == '__main__':
         variable_names,
         adjacency,
         valid_mgmts,
+        strategy_variables,
         temp_min=sum(weights)/1000.0,
         temp_max=sum(weights)*5000,
-        steps=100000,
-        report_interval=10000
+        steps=300000,
+        report_interval=30000
     )
 
     print best

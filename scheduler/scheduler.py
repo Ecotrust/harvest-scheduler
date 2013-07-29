@@ -11,6 +11,7 @@ def schedule(
         variable_names,
         adjacency,
         valid_mgmts,
+        strategy_variables,
         temp_min=0.01,
         temp_max=1000,
         steps=50000,
@@ -107,12 +108,30 @@ def schedule(
                 property_stddev = values.std(axis=0)
                 objective_metrics.append(property_stddev * weights[s])
 
+            elif strategy == 'evenflow_target':
+                values = cumulative_by_time_period[:, s]
+
+                maxval = theoretical_maxes[s]
+                minval = theoretical_mins[s]
+                range_by_period = (maxval - minval) / float(num_periods)
+
+                # property-level targets
+                target_per_period = strategy_variables[s]
+                targets = np.array([target_per_period] * num_periods)
+                abs_diffs = np.absolute(values - targets)
+
+                scaled_sum_diffs = 100 * ((abs_diffs / range_by_period)).mean()
+                objective_metrics.append(scaled_sum_diffs * weights[s])
+
             elif strategy == 'cumulative_minimize':
                 # compare the value to the theoretical minimum
                 maxval = theoretical_maxes[s]
                 minval = theoretical_mins[s]
                 cumval = property_cumulative[s]
                 objective_metrics.append(100*((cumval - minval) / float(maxval - minval)) * weights[s])
+
+            else:
+                raise Exception("Unknown optimization strategy `%s`" % strategy)
 
         objective_metric = sum(objective_metrics)
 
@@ -137,6 +156,7 @@ def schedule(
             print "unweighted best: ", ",  ".join(["%s: %.2f" % x
                                                    for x in zip(variable_names,
                                                                 [a / b for a, b in zip(best_metrics, weights)])])
+            print cumulative_by_time_period[:, 2]
             print
             improves = 0
             accepts = 0
