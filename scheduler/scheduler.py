@@ -37,6 +37,7 @@ def schedule(
     # use numpy indexing to select only the desired mgmt of each stand
     # effectively collapses array on mgmts axis to a 3D array (stands x periods x variables)
     selected = data[stand_range, mgmts].copy()
+    prev_selected = selected.copy()
 
     best_metric = float('inf')
     best_mgmts = mgmts[:]
@@ -120,7 +121,7 @@ def schedule(
                 targets = np.array([target_per_period] * num_periods)
                 abs_diffs = np.absolute(values - targets)
 
-                scaled_sum_diffs = 100 * ((abs_diffs / range_by_period)).mean()
+                scaled_sum_diffs = 100 * ((abs_diffs / (range_by_period/2.0))).mean()
                 objective_metrics.append(scaled_sum_diffs * weights[s])
 
             elif strategy == 'cumulative_minimize':
@@ -156,7 +157,6 @@ def schedule(
             print "unweighted best: ", ",  ".join(["%s: %.2f" % x
                                                    for x in zip(variable_names,
                                                                 [a / b for a, b in zip(best_metrics, weights)])])
-            print cumulative_by_time_period[:, 2]
             print
             improves = 0
             accepts = 0
@@ -177,5 +177,6 @@ def schedule(
             best_mgmts = mgmts[:]
             best_metric = objective_metric
             best_metrics = objective_metrics
+            best_vars_over_time = cumulative_by_time_period.copy()
 
-    return best_metric, best_mgmts
+    return best_metric, best_mgmts, best_vars_over_time

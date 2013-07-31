@@ -8,33 +8,21 @@ if __name__ == '__main__':
     # 4D: stands, rxs, time periods, variables
 
     # Option 1: load from files
-    # try:
-    #     stand_data = np.load('cache.array.npy')
-    #     axis_map = json.loads(open('cache.axis_map').read())
-    #     valid_mgmts = json.loads(open('cache.valid_mgmts').read())
-    # except:
     stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv()
 
     # Option 2: random data
     # stand_data, axis_map, valid_mgmts = prep_data.from_random()
 
-    # Option 3: load from sqlite db
-    # try:
-    #     stand_data = np.load('cache.array.npy')
-    #     axis_map = json.loads(open('cache.axis_map').read())
-    #     valid_mgmts = json.loads(open('cache.valid_mgmts').read())
-    # except:
-    #     stand_data, axis_map, valid_mgmts = prep_data.from_shp_sqlite()
-
     ###########################################################################
     # pick a strategy for each stand rx time period variable
     # cumulative_maximize : target the absolute highest cumulative value
-    # evenflow            : minimize variance around a target
+    # evenflow_target     : minimize variance around a target
+    # evenflow            : minimize stddev over time
     # cumulative_minimize : treated as cost; target the lowest cumulative value
-    strategies = ['cumulative_maximize', 'cumulative_maximize', 'evenflow_target', 'cumulative_minimize']
-    strategy_variables = [None, None, 200, None]
-    variable_names = ['carbon', 'harvest', 'harvest flow', 'cost']
-    weights = [1.0, 1.0, 1.0, .01]
+    strategies = ['cumulative_maximize', 'evenflow_target', 'cumulative_maximize', 'cumulative_minimize']
+    strategy_variables = [None, 200, None, None]
+    variable_names = ['carbon', 'harvest flow', 'owl habitat', 'cost']
+    weights = [1.0, 1.0, 1.0, 1.0]
 
     # TODO need to define which variable is considered ("harvest")
     # and when rx is changed, check the adjacent stands for each time period
@@ -42,13 +30,7 @@ if __name__ == '__main__':
     adjacency = [None for x in range(stand_data.shape[0])]
     adjacency[4] = (3, 2, 4)  # avoid cutting stand 4 when 1,2,3 have harvests?
 
-    # restrict managment options for certain stands
-    # valid_mgmts = [None for x in range(stand_data.shape[0])]
-    # valid_mgmts[0] = (0, 1, 2)
-    # valid_mgmts[1] = (0, 1, 2)
-    # valid_mgmts[2] = (0, 1, 2)
-
-    best, optimal_stand_rxs = schedule(
+    best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
         strategies,
         weights,
@@ -56,12 +38,20 @@ if __name__ == '__main__':
         adjacency,
         valid_mgmts,
         strategy_variables,
-        temp_min=sum(weights)/1000.0,
+        temp_min=sum(weights)/5000.0,
         temp_max=sum(weights)*5000,
         steps=300000,
-        report_interval=30000
+        report_interval=10000
     )
 
-    print best
-    for osrx in optimal_stand_rxs:
-        print axis_map['mgmt'][osrx]
+    print "Stand, Rx, Offset"
+    for i, osrx in enumerate(optimal_stand_rxs):
+        print ", ".join([str(x) for x in ([i] + axis_map['mgmt'][osrx])])
+    print 
+
+    print "    ", " ".join(["%15s" % x for x in variable_names])
+    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    for i, annual_vars in enumerate(vars_over_time.tolist()):
+        print "%4d" % i, " ".join(["%15d" % x for x in annual_vars])
+    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    print "sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])

@@ -2,6 +2,7 @@ import numpy as np
 import os
 import csv
 import json
+import math
 
 
 def from_random():
@@ -59,13 +60,28 @@ def get_offsets(rx):
     return available_offsets
 
 
-def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
+def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
+    try:
+        stand_data = np.load('cache.array.npy')
+        axis_map = json.loads(open('cache.axis_map').read())
+        valid_mgmts = json.loads(open('cache.valid_mgmts').read())
+        print "Using cached data to reduce calculation time..."
+        return stand_data, axis_map, valid_mgmts
+    except:
+        pass  # calculate it
+
     import shapefile
     import glob
+    from forestcost import main_model
+    from forestcost import routing
+    from forestcost import landing
+
     sf = shapefile.Reader(shp)
 
-    # TODO
+    shapes = sf.shapes()
+
     rxs = range(1, 26)
+    #rxs = range(1, 3)
 
     field_nums = {
         'acres': None,
@@ -81,7 +97,11 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
         if b[0] == 'cond':
             field_nums['cond'] = a - 1
         if b[0] == 'rx':
-            field_nums['rx'] = a - 1 
+            field_nums['rx'] = a - 1
+        if b[0] == 'SLOPE_MEAN':
+            field_nums['slope'] = a - 1
+        if b[0] == 'ELEV_MEAN':
+            field_nums['elev'] = a - 1
 
     assert None not in field_nums.values()
 
@@ -96,9 +116,25 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
 
     fvsdata = {}
 
+    # Landing Coordinates
+    ##### TODO ##########################
+    # center = input_property.geometry_final.point_on_surface
+    # centroid_coords = center.transform(4326, clone=True).tuple
+    centroid_coords = (-124.35, 42.787)
+    landing_coords = landing.landing(centroid_coords=centroid_coords)
+
+    haulDist, haulTime, coord_mill = routing.routing(
+        landing_coords, mill_shp='/usr/local/apps/land_owner_tools/lot/fixtures/mills/mills.shp'  # TODO
+    )
+    ######################################
+
     for i, record in enumerate(sf.iterRecords()):
+        print "Reading shape %d" % i
+
         cond = record[field_nums['cond']]
         acres = record[field_nums['acres']]
+        slope = record[field_nums['slope']]
+        elev = record[field_nums['elev']]
         raw_restricted_rxs = record[field_nums['rx']]
         try:
             restricted_rxs = [int(x) for x in raw_restricted_rxs.split(",")]
@@ -114,7 +150,7 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
             # assumes csvs rows are sorted by year
             csv_path = glob.glob(os.path.join(csvdir, "varPN_rx%s_cond%s*.csv" % (rx, cond)))[0]
             if (rx, cond) not in fvsdata.keys():
-                print "reading (%s, %s)" % (rx, cond)
+                # print "reading (%s, %s)" % (rx, cond)
                 reader = csv.DictReader(open(csv_path, 'rb'), delimiter=',', quotechar='"')
                 fvsdata[(rx, cond)] = list(reader)
 
@@ -126,29 +162,93 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
                     vars = []
                     if offset == int(line['offset']):
                         try:
-                            f = float(line['FIREHZD']) * acres
-                            c = float(line['total_stand_carbon']) * acres
-                            t = float(line['removed_merch_ft3']) * acres / 1000.0
-                            vars.append(c)
-                            vars.append(t)
-                            vars.append(t)
-                            vars.append(f)
-                            # TODO: calculate actual cost!
-                        except:
+                            carbon = float(line['total_stand_carbon']) * acres
+                            timber = float(line['removed_merch_ft3']) * acres / 1000.0  # mbf
+                            owl = float(line['NSONEST']) * acres
+                        except ValueError:
                             continue
+                        vars.append(carbon)
+                        vars.append(timber)
+                        vars.append(owl)
+
+                        ###################################################################
+                        # Calculate actual cost
+
+                        poly = shapes[i]
+                        # TODO assert poly is single part
+                        wkt = "POLYGON((%s))" % (",".join(["%f %f" % (x, y) for (x, y) in poly.points]))
+
+                        try:
+                            cut_type = line['CUT_TYPE']
+                            cut_type = int(float(cut_type))
+                        except ValueError:
+                            # no harvest so don't attempt to calculate
+                            cut_type = 0
+
+                        # PartialCut(clear cut = 0, partial cut = 1)
+                        PartialCut = None
+                        if cut_type == 3:
+                            PartialCut = 0
+                        elif cut_type in [1, 2]:
+                            PartialCut = 1
+
+                        #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
+
+                        if PartialCut is not None:
+                            cost_args = (
+                                # stand info
+                                acres, elev, slope, wkt,
+                                # harvest info
+                                float(line['CH_TPA']), float(line['CH_CF']),
+                                float(line['SM_TPA']), float(line['SM_CF']),
+                                float(line['LG_TPA']), float(line['LG_CF']),
+                                float(line['CH_HW']), float(line['SM_HW']), float(line['LG_HW']),
+                                PartialCut,
+                                # routing info
+                                landing_coords, haulDist, haulTime, coord_mill
+                            )
+
+                            if sum(cost_args[4:10]) == 0:
+                                #print "No chip, small or log trees but cut indicated ... how did we get here?"
+                                #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
+                                vars.append(0.0)
+                            else:
+                                try:
+                                    result = main_model.cost_func(*cost_args)
+                                    #print "Cost model run successfully"
+                                    cost = result['total_cost']
+                                    # if math.isnan(cost):
+                                    #     print "cost is nan... setting to 1 billion"
+                                    #     cost = 999999999  # almost 1 billion, impossibly high
+                                    vars.append(cost)
+                                except ZeroDivisionError:
+                                    print "ZeroDivisionError"
+                                    vars.append(0.0)
+                        else:
+                            # No cut == no cost
+                            # print "No cut, no cost"
+                            vars.append(0.0)
+
+                        ###################################################################
+
+                        assert len(vars) == 4
                         mgmt_timeperiods.append(vars)
 
                 if rx in restricted_rxs:
                     temporary_mgmt_list.append(mgmt_id)
                 mgmt_id += 1
-                if mgmt_timeperiods == []:
-                    import ipdb; ipdb.set_trace()
+                assert len(mgmt_timeperiods) > 0
                 stand_mgmts.append(mgmt_timeperiods)
 
         valid_mgmts.append(temporary_mgmt_list)
         property_stands.append(stand_mgmts)
 
     arr = np.array(property_stands)
+
+    # fill in NaN costs with max possible cost
+    maxcost = np.nanmax(arr)
+    arr[np.isnan(arr)] = maxcost
+    #assert np.isnan(arr).max() is False
 
     # caching
     np.save('cache.array', arr)
@@ -162,9 +262,9 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2"):
 
 def from_shp_sqlite(shp="data/test_stands2", db="data/data.db"):
     """
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-    NOT READY YET 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    NOT READY YET
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     Uses shapefile and sqlitedb as created by
     https://github.com/Ecotrust/growth-yield-batch/blob/master/scripts/csvs_to_sqlite.py
