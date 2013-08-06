@@ -217,12 +217,11 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
                                     result = main_model.cost_func(*cost_args)
                                     #print "Cost model run successfully"
                                     cost = result['total_cost']
-                                    # if math.isnan(cost):
-                                    #     print "cost is nan... setting to 1 billion"
-                                    #     cost = 999999999  # almost 1 billion, impossibly high
                                     vars.append(cost)
                                 except ZeroDivisionError:
-                                    print "ZeroDivisionError"
+                                    print "\nZeroDivisionError:\n"
+                                    print cost_args
+                                    print "--------------"
                                     vars.append(0.0)
                         else:
                             # No cut == no cost
@@ -247,6 +246,7 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
 
     # fill in NaN costs with max possible cost
     maxcost = np.nanmax(arr)
+    print "Filling in NaN costs with the max cost of %d" % (maxcost,)
     arr[np.isnan(arr)] = maxcost
     #assert np.isnan(arr).max() is False
 

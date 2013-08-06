@@ -47,6 +47,7 @@ def schedule(
 
     accepts = 0
     improves = 0
+    last_reported_step = 0
     temp_factor = -math.log(temp_max / temp_min)
 
     theoretical_maxes = [0 for x in range(num_variables)]
@@ -150,8 +151,9 @@ def schedule(
             improve = False
 
         if (step+1) % report_interval == 0 and step > 0:
-            print "step: %-7d accepts: %-5d improves: %-5d best_metric:   %-6.2f    temp: %-1.4f" % (
-                step+1, accepts, improves, best_metric, temp)
+            reported_steps = float(step - last_reported_step)
+            print "step: %-7d  accepted %0.2f %%   improved %0.2f %%   best_metric:   %-6.2f    temp: %-1.4f" % (
+                step+1, 100*accepts/reported_steps, 100*improves/reported_steps, best_metric, temp)
             print "  weighted best: ", ",  ".join(["%s: %.2f" % x
                                                    for x in zip(variable_names, best_metrics)])
             print "unweighted best: ", ",  ".join(["%s: %.2f" % x
@@ -160,6 +162,7 @@ def schedule(
             print
             improves = 0
             accepts = 0
+            last_reported_step = step
 
         if improve:
             improves += 1
