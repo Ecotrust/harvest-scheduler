@@ -63,19 +63,20 @@ def schedule(
         # determine temperature
         temp = temp_max * math.exp(temp_factor * step / steps)
 
-        new_stand = random.randrange(num_stands)
-        old_mgmt = mgmts[new_stand]
+        actual_change = False
+        while not actual_change:
+            new_stand = random.randrange(num_stands)
+            old_mgmt = mgmts[new_stand]
 
-        if valid_mgmts[new_stand]:
-            # new stand has restricted mgmts, pick from the select list
-            new_mgmt = random.choice(valid_mgmts[new_stand])
-        else:
-            # pick anything
-            new_mgmt = random.randrange(num_mgmts)
+            if valid_mgmts[new_stand]:
+                # new stand has restricted mgmts, pick from the select list
+                new_mgmt = random.choice(valid_mgmts[new_stand])
+            else:
+                # pick anything
+                new_mgmt = random.randrange(num_mgmts)
 
-        if old_mgmt == new_mgmt:
-            step -= 1  # this one doesn't count as it wasn't a true change
-            continue
+            if old_mgmt != new_mgmt:
+                actual_change = True
 
         mgmts[new_stand] = new_mgmt
 
@@ -95,7 +96,6 @@ def schedule(
         targets = None
         for s, strategy in enumerate(strategies):
             # note that all cumulative metrics return some value that is effectively scaled 0-100
-            # TODO make evenflow return a number scaled 0-100
 
             if strategy == 'cumulative_maximize':
                 # compare the value to the theoretical maximum
@@ -108,6 +108,8 @@ def schedule(
                 values = cumulative_by_time_period[:, s]
                 # property-level standard deviation of THIS variable over time
                 property_stddev = values.std(axis=0)
+
+                # TODO make evenflow return a number scaled 0-100
                 objective_metrics.append(property_stddev * weights[s])
 
             elif strategy == 'evenflow_target':

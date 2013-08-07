@@ -16,7 +16,7 @@ if __name__ == '__main__':
     strategies = ['cumulative_maximize', 'evenflow_target', 'cumulative_maximize', 'cumulative_minimize']
     strategy_variables = [None, [150] * 6 + [500] + [120] * 13, None, None]
     variable_names = ['carbon', 'harvest flow', 'owl habitat', 'cost']
-    weights = [1.0, 4.0, 1.0, 1.0]
+    weights = [1.0, 4.0, 1.0, 2.0]
 
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
@@ -26,8 +26,8 @@ if __name__ == '__main__':
         valid_mgmts,
         strategy_variables,
         adjacency=None,
-        temp_min=sum(weights)/1000.0,
-        temp_max=sum(weights)*1000,
+        temp_min=sum(weights)/100.0,
+        temp_max=sum(weights)*100,
         steps=300000,
         report_interval=10000
     )
