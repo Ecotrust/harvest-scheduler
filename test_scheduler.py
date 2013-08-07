@@ -14,9 +14,9 @@ if __name__ == '__main__':
     #  evenflow            : minimize stddev over time
     #  cumulative_minimize : treated as cost; target the lowest cumulative value
     strategies = ['cumulative_maximize', 'evenflow_target', 'cumulative_maximize', 'cumulative_minimize']
-    strategy_variables = [None, 150, None, None]
+    strategy_variables = [None, [150] * 6 + [500] + [120] * 13, None, None]
     variable_names = ['carbon', 'harvest flow', 'owl habitat', 'cost']
-    weights = [1.0, 3.0, 1.0, 1.0]
+    weights = [1.0, 4.0, 1.0, 1.0]
 
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,

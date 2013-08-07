@@ -92,6 +92,7 @@ def schedule(
         property_cumulative = cumulative_by_time_period.sum(axis=0)
 
         objective_metrics = []
+        targets = None
         for s, strategy in enumerate(strategies):
             # note that all cumulative metrics return some value that is effectively scaled 0-100
             # TODO make evenflow return a number scaled 0-100
@@ -116,12 +117,23 @@ def schedule(
                 minval = theoretical_mins[s]
                 range_by_period = (maxval - minval) / float(num_periods)
 
-                # property-level targets
-                target_per_period = strategy_variables[s]
-                targets = np.array([target_per_period] * num_periods)
-                abs_diffs = np.absolute(values - targets)
+                # property-level targets over time
+                if not targets:
+                    target_per_period = strategy_variables[s]
+                    try:
+                        assert len(target_per_period) == num_periods
+                        # it's a list
+                        targets = np.array(target_per_period)
+                    except TypeError:
+                        # it's a scalar
+                        targets = np.array([target_per_period] * num_periods)
 
-                scaled_sum_diffs = 100 * ((abs_diffs / (range_by_period/2.0))).mean()
+                # absolute val but double penalty for going *below* target
+                diffs = values - targets
+                diffs[diffs < 0] *= -2
+                # diffs = np.absolute(values - targets)
+
+                scaled_sum_diffs = 100 * ((diffs / (range_by_period/2.0))).mean()
                 objective_metrics.append(scaled_sum_diffs * weights[s])
 
             elif strategy == 'cumulative_minimize':
