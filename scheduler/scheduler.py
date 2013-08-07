@@ -11,7 +11,7 @@ def schedule(
         variable_names,
         valid_mgmts,
         strategy_variables,
-        adjacency=None,
+        adjacency,
         temp_min=0.01,
         temp_max=1000,
         steps=50000,
@@ -79,6 +79,20 @@ def schedule(
                 actual_change = True
 
         mgmts[new_stand] = new_mgmt
+
+        # determine if adjacent stands constitue clumps of harvesting that
+        # might exceed regulatory limits
+        adjacency_penalty = 0
+        try:
+            adj_stands = adjacency[new_stand]
+            harvest = selected[:, :, 1]
+            harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
+            # TODO - don't hardcode
+            MAX_HARVEST_CLUMP = 75
+            if harvest_clump.max() > MAX_HARVEST_CLUMP:
+                adjacency_penalty = 1000
+        except KeyError:
+            pass
 
         # modify selected data and replace it out with the new move
         selected[new_stand] = data[new_stand, new_mgmt]
@@ -148,7 +162,7 @@ def schedule(
             else:
                 raise Exception("Unknown optimization strategy `%s`" % strategy)
 
-        objective_metric = sum(objective_metrics)
+        objective_metric = sum(objective_metrics) + adjacency_penalty
 
         accept = False
         improve = False

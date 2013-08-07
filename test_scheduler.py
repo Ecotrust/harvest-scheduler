@@ -6,7 +6,6 @@ if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
     stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv()
-    # stand_data, axis_map, valid_mgmts = prep_data.from_random()
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
@@ -14,9 +13,17 @@ if __name__ == '__main__':
     #  evenflow            : minimize stddev over time
     #  cumulative_minimize : treated as cost; target the lowest cumulative value
     strategies = ['cumulative_maximize', 'evenflow_target', 'cumulative_maximize', 'cumulative_minimize']
-    strategy_variables = [None, [150] * 6 + [500] + [120] * 13, None, None]
     variable_names = ['carbon', 'harvest flow', 'owl habitat', 'cost']
-    weights = [1.0, 4.0, 1.0, 2.0]
+    weights = [1.0, 4.0, 1.0, 1.0]
+
+    flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
+    strategy_variables = [None, flow, None, None]
+
+    adjacency = {
+        # 18: [19, 20],
+        # 19: [18, 17],
+        # 20: [18]
+    }
 
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
@@ -25,10 +32,10 @@ if __name__ == '__main__':
         variable_names,
         valid_mgmts,
         strategy_variables,
-        adjacency=None,
+        adjacency,
         temp_min=sum(weights)/100.0,
         temp_max=sum(weights)*100,
-        steps=300000,
+        steps=200000,
         report_interval=10000
     )
 
