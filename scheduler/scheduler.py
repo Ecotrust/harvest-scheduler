@@ -9,9 +9,9 @@ def schedule(
         strategies,
         weights,
         variable_names,
-        adjacency,
         valid_mgmts,
         strategy_variables,
+        adjacency=None,
         temp_min=0.01,
         temp_max=1000,
         steps=50000,
@@ -24,7 +24,6 @@ def schedule(
     assert len(strategies) == num_variables
     assert len(weights) == num_variables
     assert len(variable_names) == num_variables
-    assert len(adjacency) == num_stands
     assert len(valid_mgmts) == num_stands
 
     # initial mgmt

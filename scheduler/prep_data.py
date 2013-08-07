@@ -60,6 +60,23 @@ def get_offsets(rx):
     return available_offsets
 
 
+def bbox_center(bbox):
+    x = (bbox[0] + bbox[2])/2.0
+    y = (bbox[1] + bbox[3])/2.0
+    return x, y
+
+
+def mercator_to_lonlat(pt):
+        "Converts XY point from Spherical Mercator EPSG:900913 to lat/lon in WGS84 Datum"
+        originShift = 2 * math.pi * 6378137 / 2.0  # 20037508.342789244
+        lon = (pt[0] / originShift) * 180.0
+        lat = (pt[1] / originShift) * 180.0
+
+        lat = 180 / math.pi * (2 * math.atan(math.exp(
+                                             lat * math.pi / 180.0)) - math.pi / 2.0)
+        return lon, lat
+
+
 def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
     try:
         stand_data = np.load('cache.array.npy')
@@ -117,16 +134,12 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
     fvsdata = {}
 
     # Landing Coordinates
-    ##### TODO ##########################
-    # center = input_property.geometry_final.point_on_surface
-    # centroid_coords = center.transform(4326, clone=True).tuple
-    centroid_coords = (-124.35, 42.787)
+    # Assumes original shapefile in mercator
+    centroid_coords = mercator_to_lonlat(bbox_center(sf.bbox))
     landing_coords = landing.landing(centroid_coords=centroid_coords)
-
     haulDist, haulTime, coord_mill = routing.routing(
         landing_coords, mill_shp='/usr/local/apps/land_owner_tools/lot/fixtures/mills/mills.shp'  # TODO
     )
-    ######################################
 
     for i, record in enumerate(sf.iterRecords()):
         print "Reading shape %d" % i
