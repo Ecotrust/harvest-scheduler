@@ -106,6 +106,8 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
         'cond': None,
         'rx': None,
     }
+
+    # Assumes the shapefile has ACRES, name, cond, rx, SLOPE_MEAN, ELEV_MEAN fields
     for a, b in enumerate(sf.fields):
         if b[0] == 'ACRES':
             field_nums['acres'] = a - 1
@@ -133,13 +135,14 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
 
     fvsdata = {}
 
+    # !!! Commented out until OSMR routing is fixed
     # Landing Coordinates
     # Assumes original shapefile in mercator
-    centroid_coords = mercator_to_lonlat(bbox_center(sf.bbox))
-    landing_coords = landing.landing(centroid_coords=centroid_coords)
-    haulDist, haulTime, coord_mill = routing.routing(
-        landing_coords, mill_shp='/usr/local/apps/land_owner_tools/lot/fixtures/mills/mills.shp'  # TODO
-    )
+    # centroid_coords = mercator_to_lonlat(bbox_center(sf.bbox))
+    # landing_coords = landing.landing(centroid_coords=centroid_coords)
+    # haulDist, haulTime, coord_mill = routing.routing(
+    #     landing_coords, mill_shp='/usr/local/apps/land_owner_tools/lot/fixtures/mills/mills.shp'
+    # )
 
     for i, record in enumerate(sf.iterRecords()):
         print "Reading shape %d" % i
@@ -177,20 +180,27 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
                         try:
                             carbon = float(line['total_stand_carbon']) * acres
                             timber = float(line['removed_merch_ft3']) * acres / 1000.0  # mbf
-                            owl = float(line['NSONEST']) * acres
+                            owl_acres = float(line['NSONEST']) * acres
+                            fire_code = float(line['FIREHZD'])
                         except ValueError:
                             continue
-                        vars.append(carbon)
+
                         vars.append(timber)
-                        vars.append(owl)
+                        vars.append(timber)  # include another timber column for even flow
+                        vars.append(carbon)
+                        vars.append(owl_acres)
 
-                        ###################################################################
-                        # Calculate actual cost
+                        # Determine areas with high fire risk
+                        # 0 = very low risk, 1 = low risk, 2 = medium risk
+                        # 3 = medium-high risk, 4 = high risk
+                        if fire_code > 3: 
+                            fire_acres = acres
+                        else:
+                            fire_acres = 0
+                        vars.append(fire_acres)
 
-                        poly = shapes[i]
-                        # TODO assert poly is single part
-                        wkt = "POLYGON((%s))" % (",".join(["%f %f" % (x, y) for (x, y) in poly.points]))
-
+                        # !!! Can't use cost until OSMR routing is fixed
+                        # Use slope as a stand-in
                         try:
                             cut_type = line['CUT_TYPE']
                             cut_type = int(float(cut_type))
@@ -205,45 +215,59 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
                         elif cut_type in [1, 2]:
                             PartialCut = 1
 
-                        #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
+                        if PartialCut is None:  # no harvest
+                            vars.append(0)
+                        elif PartialCut == 0:  # clear cut = use slope as cost proxy
+                            vars.append(slope)
+                        elif PartialCut == 1:  # partial cut = use half slope as cost proxy
+                            vars.append(slope/2) 
 
-                        if PartialCut is not None:
-                            cost_args = (
-                                # stand info
-                                acres, elev, slope, wkt,
-                                # harvest info
-                                float(line['CH_TPA']), float(line['CH_CF']),
-                                float(line['SM_TPA']), float(line['SM_CF']),
-                                float(line['LG_TPA']), float(line['LG_CF']),
-                                float(line['CH_HW']), float(line['SM_HW']), float(line['LG_HW']),
-                                PartialCut,
-                                # routing info
-                                landing_coords, haulDist, haulTime, coord_mill
-                            )
+                        # ###################################################################
+                        # # Calculate actual cost
 
-                            if sum(cost_args[4:10]) == 0:
-                                #print "No chip, small or log trees but cut indicated ... how did we get here?"
-                                #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
-                                vars.append(0.0)
-                            else:
-                                try:
-                                    result = main_model.cost_func(*cost_args)
-                                    #print "Cost model run successfully"
-                                    cost = result['total_cost']
-                                    vars.append(cost)
-                                except ZeroDivisionError:
-                                    print "\nZeroDivisionError:\n"
-                                    print cost_args
-                                    print "--------------"
-                                    vars.append(0.0)
-                        else:
-                            # No cut == no cost
-                            # print "No cut, no cost"
-                            vars.append(0.0)
+                        # poly = shapes[i]
+                        # # TODO assert poly is single part
+                        # wkt = "POLYGON((%s))" % (",".join(["%f %f" % (x, y) for (x, y) in poly.points]))
 
-                        ###################################################################
+                        # #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
 
-                        assert len(vars) == 4
+                        # if PartialCut is not None:
+                        #     cost_args = (
+                        #         # stand info
+                        #         acres, elev, slope, wkt,
+                        #         # harvest info
+                        #         float(line['CH_TPA']), float(line['CH_CF']),
+                        #         float(line['SM_TPA']), float(line['SM_CF']),
+                        #         float(line['LG_TPA']), float(line['LG_CF']),
+                        #         float(line['CH_HW']), float(line['SM_HW']), float(line['LG_HW']),
+                        #         PartialCut,
+                        #         # routing info
+                        #         landing_coords, haulDist, haulTime, coord_mill
+                        #     )
+
+                        #     if sum(cost_args[4:10]) == 0:
+                        #         #print "No chip, small or log trees but cut indicated ... how did we get here?"
+                        #         #print cond, line['year'], rx, offset, "Cut type", cut_type, "PartialCut", PartialCut
+                        #         vars.append(0.0)
+                        #     else:
+                        #         try:
+                        #             result = main_model.cost_func(*cost_args)
+                        #             #print "Cost model run successfully"
+                        #             cost = result['total_cost']
+                        #             vars.append(cost)
+                        #         except ZeroDivisionError:
+                        #             print "\nZeroDivisionError:\n"
+                        #             print cost_args
+                        #             print "--------------"
+                        #             vars.append(0.0)
+                        # else:
+                        #     # No cut == no cost
+                        #     # print "No cut, no cost"
+                        #     vars.append(0.0)
+
+                        # ###################################################################
+
+                        assert len(vars) == 6
                         mgmt_timeperiods.append(vars)
 
                 if rx in restricted_rxs:
@@ -271,66 +295,3 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
         fh.write(json.dumps(valid_mgmts, indent=2))
 
     return arr, axis_map, valid_mgmts
-
-
-def from_shp_sqlite(shp="data/test_stands2", db="data/data.db"):
-    """
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    NOT READY YET
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Uses shapefile and sqlitedb as created by
-    https://github.com/Ecotrust/growth-yield-batch/blob/master/scripts/csvs_to_sqlite.py
-    """
-    import shapefile
-    import glob
-    import sqlite3
-
-    sf = shapefile.Reader(shp)
-
-    con = sqlite3.connect(db)
-    cur = con.cursor()
-
-    # TODO
-    rxs = range(1, 26)
-
-    field_nums = {
-        'acres': None,
-        'name': None,
-        'cond': None,
-        'rx': None,
-    }
-    for a, b in enumerate(sf.fields):
-        if b[0] == 'ACRES':
-            field_nums['acres'] = a - 1
-        if b[0] == 'name':
-            field_nums['name'] = a - 1
-        if b[0] == 'cond':
-            field_nums['cond'] = a - 1
-        if b[0] == 'rx':
-            field_nums['rx'] = a - 1
-
-    assert None not in field_nums.values()
-
-    # populate axis map
-    axis_map = {'mgmt': []}
-    for rx in rxs:
-        available_offsets = get_offsets(rx)
-        for offset in available_offsets:
-            axis_map['mgmt'].append((rx, offset))
-
-    # First pass, get unique conds
-    unique_conds = []
-    for i, record in enumerate(sf.iterRecords()):
-        cond = record[field_nums['cond']]
-        if cond not in unique_conds:
-            unique_conds.append(cond)
-
-    sql = """
-        SELECT cond, rx, offset, year, firehzd, total_stand_carbon, removed_merch_ft3
-        FROM trees_fvsaggregate
-        WHERE cond IN (%s)
-        AND var = 'PN'
-    """ % (",".join([str(x) for x in unique_conds]))
-    rs = cur.execute(sql)
-    results = rs.fetchall()
