@@ -42,9 +42,31 @@ The calculation of the objective metric involves looking at each variable, for e
 and distilling it down to a single number. In order to do this, each variable can 
 be handled according to a preset *strategy*
 
-* **Cumulative-Maximize**: Attempt to maximize the cumulative property-level sum of the variable over time. 
-* **Cumulative-Minimize**: Attempt to minimize the cumulative property-level sum over time. 
-* **Evenflow**: Attempt to minimize the cumulative property-level standard deviation over time.
+* **cumulative-maximize**: Attempt to maximize the cumulative property-level sum of the variable over time. 
+* **cumulative-minimize**: Attempt to minimize the cumulative property-level sum over time. 
+* **evenflow**: Attempt to minimize the cumulative property-level standard deviation over time.
+* **evenflow-target**: Attempt to minimize the variation over time around a set target. Target can be scalar or array of values over time.
+
+# Usage
+
+### Data Prep
+
+See `scheduler/prep_data.py` for details.
+
+This module contains a function `prep_data.from_shp_csv` which takes two arguments:
+1. Path to a shapefile containing stand polygons. Required attributes, projection, etc. are all defined by the `prep_data.py` module. 
+This will eventually be specified/documented but for now, just read the code *carefully* for the specs.
+2. Path to the *directory* containing the csvs output from the FVS batch growth-yield process. 
+
+The data from the shapfile and csvs will be combined to form the data structures expected 
+by the scheduler.
+
+The data will be cached to disk to avoid recalculating expensive datasets. Remove the 
+`cache.*` files in order to force a recalculation.
+
+### Using the scheduler
+
+See `test_scheduler.py` for an example of usage of the scheduler interface. 
 
 
 
