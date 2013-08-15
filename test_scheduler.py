@@ -5,7 +5,8 @@ from scheduler import prep_data
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv()
+    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
+                                                               csvdir="data/csvs2")
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
@@ -14,7 +15,7 @@ if __name__ == '__main__':
     #  cumulative_minimize : treated as cost; target the lowest cumulative value
     variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
     strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
-    weights = [4.0, 4.0, 1.0, 1.0, 1.0, 1.0]
+    weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
 
     #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
     #flow = [320, 40] * 10
@@ -37,8 +38,8 @@ if __name__ == '__main__':
         adjacency,
         temp_min=sum(weights)/100.0,
         temp_max=sum(weights)*100,
-        steps=150000,
-        report_interval=15000
+        steps=250000,
+        report_interval=25000
     )
 
     # Report results

@@ -77,7 +77,7 @@ def mercator_to_lonlat(pt):
         return lon, lat
 
 
-def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
+def from_shp_csv(shp, csvdir, cache=True):
     try:
         stand_data = np.load('cache.array.npy')
         axis_map = json.loads(open('cache.axis_map').read())
@@ -89,9 +89,9 @@ def from_shp_csv(shp="data/test_stands2", csvdir="data/csvs2", cache=True):
 
     import shapefile
     import glob
-    from forestcost import main_model
-    from forestcost import routing
-    from forestcost import landing
+    # from forestcost import main_model
+    # from forestcost import routing
+    # from forestcost import landing
 
     sf = shapefile.Reader(shp)
 
