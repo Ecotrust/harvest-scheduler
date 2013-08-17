@@ -5,12 +5,12 @@ import json
 import math
 
 
-def from_random():
+def from_random(stands, mgmts, timeperiods, numvars):
     # consistently generate a random set
     np.random.seed(42)
     # 4D: stands, mgmts, time periods, variables
     # gaussian distribution; mean of 10, stddev of 3
-    stand_data = 3 * np.random.randn(37, 121, 20, 4) + 10
+    stand_data = 3 * np.random.randn(stands, mgmts, timeperiods, numvars) + 10
     stand_data = stand_data.astype(int)
     axis_map = {'mgmt': [(x, '00') for x in range(stand_data.shape[1])]}
     valid_mgmts = [[] for x in range(stand_data.shape[0])]

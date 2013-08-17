@@ -46,18 +46,26 @@ if __name__ == '__main__':
         valid_mgmts,
         strategy_variables,
         adjacency,
-        sum(weights)/100.0,
-        sum(weights)*100,
+        sum(weights)/800.0,
+        sum(weights)*40,
         200000,
-        10000
+        10000,
     )
 
     pool = Pool(processes=cpu_count())
-    results = pool.map(star_schedule, [scheduler_args for x in range(4)]) 
+    results = pool.map(star_schedule, [scheduler_args for x in range(2)]) 
 
-    print "    ", " ".join(["%15s" % x for x in variable_names])
-    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    print "    ", " ".join(["%15s" % "Obj Metric"] + ["%15s" % x for x in variable_names])
+    print "----|" + "".join([("-" * 15) + "|" for x in variable_names + ['foo']])
+    bests = []
     for result in results:
         best, optimal_stand_rxs, vars_over_time = result
-        print "mean", " ".join(["%15d" % x for x in vars_over_time.mean(axis=0)])
+        bests.append(best)
+        print "mean", " ".join(["%15d" % best] + ["%15d" % x for x in vars_over_time.mean(axis=0)])
+
+    import numpy as np
+    print
+    print "Over %d runs:" % len(bests)
+    print "Mean of objective metric", np.array(bests).mean()
+    print "Standard deviation of objective metric", np.array(bests).std()
 

@@ -5,8 +5,10 @@ from scheduler import prep_data
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
-                                                               csvdir="data/csvs2")
+    # stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
+    #                                                            csvdir="data/csvs2")
+
+    stand_data, axis_map, valid_mgmts = prep_data.from_random(500, 121, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
@@ -18,9 +20,9 @@ if __name__ == '__main__':
     weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
 
     #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
-    #flow = [320, 40] * 10
-    #strategy_variables = [None, flow, None, None]
-    strategy_variables = [None] * 6
+    flow = [320, 40] * 10
+    strategy_variables = [None, flow, None, None, None, None]
+    #strategy_variables = [None] * 6
 
     adjacency = {
         # 18: [19, 20],
@@ -38,8 +40,8 @@ if __name__ == '__main__':
         adjacency,
         temp_min=sum(weights)/100.0,
         temp_max=sum(weights)*100,
-        steps=250000,
-        report_interval=25000
+        steps=40000,
+        report_interval=5000,
     )
 
     # Report results

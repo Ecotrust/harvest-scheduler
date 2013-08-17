@@ -3,7 +3,6 @@ import random
 import numpy as np
 import math
 
-
 def schedule(
         data,
         strategies,
@@ -58,6 +57,23 @@ def schedule(
         print variable_names[s], theoretical_mins[s], "to", theoretical_maxes[s]
     print
 
+    enum_strategies = list(enumerate(strategies))
+
+    # property-level targets over time for evenflow_target variables
+    targets = []
+    for s, strategy in enum_strategies:
+        if strategy == 'evenflow_target':
+            target_per_period = strategy_variables[s]
+            try:
+                assert len(target_per_period) == num_periods
+                # it's a list
+                targets.append(np.array(target_per_period))
+            except TypeError:
+                # it's a scalar
+                targets.append(np.array([target_per_period] * num_periods))
+        else:
+            targets.append(None)
+
     for step in range(steps):
 
         # determine temperature
@@ -83,16 +99,17 @@ def schedule(
         # determine if adjacent stands constitue clumps of harvesting that
         # might exceed regulatory limits
         adjacency_penalty = 0
-        try:
-            adj_stands = adjacency[new_stand]
-            harvest = selected[:, :, 1]
-            harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
-            # TODO - don't hardcode
-            MAX_HARVEST_CLUMP = 75
-            if harvest_clump.max() > MAX_HARVEST_CLUMP:
-                adjacency_penalty = 1000
-        except KeyError:
-            pass
+        # TODO 
+        # try:
+        #     adj_stands = adjacency[new_stand]
+        #     harvest = selected[:, :, 1]
+        #     harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
+        #     # TODO - don't hardcode
+        #     MAX_HARVEST_CLUMP = 75
+        #     if harvest_clump.max() > MAX_HARVEST_CLUMP:
+        #         adjacency_penalty = 1000
+        # except KeyError:
+        #     pass
 
         # modify selected data and replace it out with the new move
         selected[new_stand] = data[new_stand, new_mgmt]
@@ -107,8 +124,8 @@ def schedule(
         property_cumulative = cumulative_by_time_period.sum(axis=0)
 
         objective_metrics = []
-        targets = None
-        for s, strategy in enumerate(strategies):
+
+        for s, strategy in enum_strategies:
             # note that all cumulative metrics return some value that is effectively scaled 0-100
 
             if strategy == 'cumulative_maximize':
@@ -133,21 +150,10 @@ def schedule(
                 minval = theoretical_mins[s]
                 range_by_period = (maxval - minval) / float(num_periods)
 
-                # property-level targets over time
-                if not targets:
-                    target_per_period = strategy_variables[s]
-                    try:
-                        assert len(target_per_period) == num_periods
-                        # it's a list
-                        targets = np.array(target_per_period)
-                    except TypeError:
-                        # it's a scalar
-                        targets = np.array([target_per_period] * num_periods)
-
                 # absolute val but double penalty for going *below* target
-                diffs = values - targets
+                diffs = values - targets[s]
                 diffs[diffs < 0] *= -2
-                # diffs = np.absolute(values - targets)
+                # diffs = np.absolute(values - targets[s])
 
                 scaled_sum_diffs = 100 * ((diffs / (range_by_period/2.0))).mean()
                 objective_metrics.append(scaled_sum_diffs * weights[s])
@@ -209,4 +215,61 @@ def schedule(
             best_metrics = objective_metrics
             best_vars_over_time = cumulative_by_time_period.copy()
 
+
     return best_metric, best_mgmts, best_vars_over_time
+
+
+if __name__ == '__main__':
+    import prep_data
+
+    # 4D: stands, rxs, time periods, variables
+    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
+                                                               csvdir="data/csvs2")
+
+    # Pick a strategy for each stand rx time period variable
+    #  cumulative_maximize : target the absolute highest cumulative value
+    #  evenflow_target     : minimize variance around a target
+    #  evenflow            : minimize stddev over time
+    #  cumulative_minimize : treated as cost; target the lowest cumulative value
+    variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
+    strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
+    weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
+
+    #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
+    flow = [320, 40] * 10
+    strategy_variables = [None, flow, None, None, None, None]
+    #strategy_variables = [None] * 6
+
+    adjacency = {
+        # 18: [19, 20],
+        # 19: [18, 17],
+        # 20: [18]
+    }
+
+    best, optimal_stand_rxs, vars_over_time = schedule(
+        stand_data,
+        strategies,
+        weights,
+        variable_names,
+        valid_mgmts,
+        strategy_variables,
+        adjacency,
+        temp_min=sum(weights)/100.0,
+        temp_max=sum(weights)*100,
+        steps=40000,
+        report_interval=5000,
+    )
+
+    # Report results
+    print "Stand, Rx, Offset"
+    for i, osrx in enumerate(optimal_stand_rxs):
+        print ", ".join([str(x) for x in ([i] + list(axis_map['mgmt'][osrx]))])
+    print
+
+    print "    ", " ".join(["%15s" % x for x in variable_names])
+    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    for i, annual_vars in enumerate(vars_over_time.tolist()):
+        print "%4d" % i, " ".join(["%15d" % x for x in annual_vars])
+    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    print "sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])
+    print "mean", " ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])
