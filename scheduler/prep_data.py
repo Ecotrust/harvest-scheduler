@@ -9,9 +9,7 @@ def from_random(stands, mgmts, timeperiods, numvars):
     # consistently generate a random set
     np.random.seed(42)
     # 4D: stands, mgmts, time periods, variables
-    # gaussian distribution; mean of 10, stddev of 3
-    stand_data = 3 * np.random.randn(stands, mgmts, timeperiods, numvars) + 10
-    stand_data = stand_data.astype(int)
+    stand_data = np.random.randint(4, 14, size=(stands, mgmts, timeperiods, numvars))
     axis_map = {'mgmt': [(x, '00') for x in range(stand_data.shape[1])]}
     valid_mgmts = [[] for x in range(stand_data.shape[0])]
 

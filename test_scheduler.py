@@ -5,10 +5,9 @@ from scheduler import prep_data
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    # stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
-    #                                                            csvdir="data/csvs2")
-
-    stand_data, axis_map, valid_mgmts = prep_data.from_random(500, 121, 20, 6)
+    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
+                                                                csvdir="data/csvs2")
+    #stand_data, axis_map, valid_mgmts = prep_data.from_random(45000, 56, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
