@@ -129,7 +129,11 @@ def schedule(
         for s, strategy in enum_strategies:
             # note that all cumulative metrics return some value that is effectively scaled 0-100
 
-            if strategy == 'cumulative_maximize':
+            if theoretical_mins[s] == theoretical_maxes[s]:
+                #if there's no variation, don't even bother
+                objective_metrics.append(0)
+
+            elif strategy == 'cumulative_maximize':
                 # compare the value to the theoretical maximum
                 maxval = theoretical_maxes[s]
                 minval = theoretical_mins[s]
@@ -211,7 +215,6 @@ def schedule(
             selected = prev_selected.copy()
 
         if objective_metric < best_metric:
-            import ipdb; ipdb.set_trace()
             best_mgmts = mgmts[:]
             best_metric = objective_metric
             best_metrics = objective_metrics

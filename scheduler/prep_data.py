@@ -123,7 +123,7 @@ def calculate_cost():
     pass
 
 
-def calculate_vars(line, stand):
+def calculate_metrics(line, stand):
     acres = stand['acres']
     slope = stand['slope']
     data = []
@@ -200,7 +200,7 @@ def handle_error(inputs):
     raise Exception("\nNo fvs outputs found for the following case (check your input shp):\n%s" % json.dumps(inputs, indent=2))
 
 
-def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False):
+def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, verbose=False):
     import sqlite3
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
@@ -231,14 +231,16 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False):
     property_stands = []
 
     for stand in get_stands(shp):
-        print stand['cond'], stand
+        if verbose:
+            print stand['cond'], stand
 
         temporary_mgmt_list = []
         stand_mgmts = []
 
         for mgmt_id, mgmt in enumerate(axis_map['mgmt']):
             rx, offset = mgmt
-            print "\t", rx, offset
+            if verbose:
+                print "\t", rx, offset
 
             inputs = {
                 'var': variant, 
@@ -266,8 +268,9 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False):
                 empty = False
                 year = row['year']
 
-                yeardata = calculate_vars(row, stand)
-                print "\t\t", year, yeardata
+                yeardata = calculate_metrics(row, stand)
+                if verbose:
+                    print "\t\t", year, yeardata
 
                 assert len(yeardata) == 6
                 mgmt_timeperiods.append(yeardata)
