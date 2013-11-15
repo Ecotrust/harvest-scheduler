@@ -40,6 +40,7 @@ def schedule(
     best_metric = float('inf')
     best_mgmts = mgmts[:]
     best_metrics = []
+
     prev_metric = float('inf')
     prev_mgmts = mgmts[:]
 
@@ -210,6 +211,7 @@ def schedule(
             selected = prev_selected.copy()
 
         if objective_metric < best_metric:
+            import ipdb; ipdb.set_trace()
             best_mgmts = mgmts[:]
             best_metric = objective_metric
             best_metrics = objective_metrics
