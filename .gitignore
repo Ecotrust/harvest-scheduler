@@ -40,3 +40,4 @@ alt_cython/scheduler.c
 alt_cython/data/*
 data/*
 cache.*
+.vagrant
