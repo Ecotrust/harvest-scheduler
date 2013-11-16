@@ -15,8 +15,12 @@ def star_schedule(args):
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
-                                                               csvdir="data/csvs2")
+    stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
+        shp="data/test_stands2", 
+        db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+
+    # stands, mgmts, timeperiods, variables
+    stand_data, axis_map, valid_mgmts = prep_data.from_random(10000, 57, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
@@ -46,14 +50,14 @@ if __name__ == '__main__':
         valid_mgmts,
         strategy_variables,
         adjacency,
-        sum(weights)/800.0,
-        sum(weights)*40,
-        200000,
-        10000,
+        sum(weights)/100.0, # temp min
+        sum(weights)*100, # temp max
+        40000, # steps
+        2000, # report interval
     )
 
     pool = Pool(processes=cpu_count())
-    results = pool.map(star_schedule, [scheduler_args for x in range(2)]) 
+    results = pool.map(star_schedule, [scheduler_args for x in range(cpu_count()-1)]) 
 
     print "    ", " ".join(["%15s" % "Obj Metric"] + ["%15s" % x for x in variable_names])
     print "----|" + "".join([("-" * 15) + "|" for x in variable_names + ['foo']])
