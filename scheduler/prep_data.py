@@ -1,6 +1,4 @@
 import numpy as np
-import os
-import csv
 import json
 import math
 
@@ -46,16 +44,6 @@ def from_demo():
         ]
     )
     return stand_data
-
-
-def get_offsets(rx):
-    if rx == 1:
-        # for grow only, offsets are pointless
-        available_offsets = [0]
-    else:
-        available_offsets = [0, 1, 2, 3, 4]
-
-    return available_offsets
 
 
 def bbox_center(bbox):
@@ -173,6 +161,7 @@ def calculate_metrics(line, stand):
 
     return data
 
+
 def get_stands(shp, default_site=2):
     import shapefile
     # TODO validate fields
@@ -184,7 +173,7 @@ def get_stands(shp, default_site=2):
         try:
             dd['restricted_rxs'] = [int(x) for x in raw_restricted_rxs.split(",")]
         except ValueError:
-            dd['restricted_rxs'] = []
+            dd['restricted_rxs'] = None
         del dd['rx']
         try:
             dd['site'] = int(dd['site'])
@@ -278,11 +267,17 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
             if empty:
                 handle_error(inputs)
 
-            if rx in stand['restricted_rxs']:
+            if stand['restricted_rxs']:
+                if rx in stand['restricted_rxs']:
+                    temporary_mgmt_list.append(mgmt_id)
+            else:
                 temporary_mgmt_list.append(mgmt_id)
 
             assert len(mgmt_timeperiods) == 20
             stand_mgmts.append(mgmt_timeperiods)
+
+        if len(temporary_mgmt_list) == 0:
+            handle_error({'rxs': stand['restricted_rxs']})
 
         valid_mgmts.append(temporary_mgmt_list)
         property_stands.append(stand_mgmts)
