@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
     stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(shp="data/test_stands2", 
-                                                             db="e:/git/growth-yield-batch/projects/__climate_test/data.db")
+                                                             db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
     #stand_data, axis_map, valid_mgmts = prep_data.from_random(45000, 56, 20, 6)
 
     # Pick a strategy for each stand rx time period variable

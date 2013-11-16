@@ -248,6 +248,7 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
               AND site = %(site)d
               AND climate = '%(climate)s'
               AND "offset" = %(offset)d
+              AND total_stand_carbon is not null  -- should remove any blanks
               ORDER BY year
             """ % inputs
 
