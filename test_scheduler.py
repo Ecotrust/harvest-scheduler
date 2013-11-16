@@ -5,8 +5,10 @@ from scheduler import prep_data
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(shp="data/test_stands2", 
-                                                             db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+    stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
+        shp="data/test_stands2", 
+        db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+
     #stand_data, axis_map, valid_mgmts = prep_data.from_random(45000, 56, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
@@ -16,10 +18,11 @@ if __name__ == '__main__':
     #  cumulative_minimize : treated as cost; target the lowest cumulative value
     variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
     strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
-    weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
+    weights = [5.0, 5.0, 1.0, 1.0, 1.0, 1.0]
 
     #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
-    flow = [320, 40] * 10
+    #flow = [320, 40] * 10
+    flow = None  
     strategy_variables = [None, flow, None, None, None, None]
     #strategy_variables = [None] * 6
 
@@ -44,11 +47,6 @@ if __name__ == '__main__':
     )
 
     # Report results
-    print "Stand, Rx, Offset"
-    for i, osrx in enumerate(optimal_stand_rxs):
-        print ", ".join([str(x) for x in ([i] + list(axis_map['mgmt'][osrx]))])
-    print
-
     print "    ", " ".join(["%15s" % x for x in variable_names])
     print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
     for i, annual_vars in enumerate(vars_over_time.tolist()):
@@ -56,3 +54,16 @@ if __name__ == '__main__':
     print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
     print "sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])
     print "mean", " ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])
+
+    # write csv
+    csvpath = "optimal_stand_mgmt.csv"
+    with open(csvpath, 'w') as fh:
+        fh.write("stand,rx,offset\n")
+        for i, osrx in enumerate(optimal_stand_rxs):
+            txtrow = ",".join([str(x) for x in ([i] + list(axis_map['mgmt'][osrx]))])
+            fh.write(txtrow + "\n")
+            # print txtrow
+    print 
+    print "Optimal stand management (rx, offset) written to " + csvpath
+    print
+

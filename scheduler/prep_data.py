@@ -285,7 +285,6 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
 
     arr = np.array(property_stands)
 
-
     # caching
     np.save('cache.array', arr)
     with open('cache.axis_map', 'w') as fh:
