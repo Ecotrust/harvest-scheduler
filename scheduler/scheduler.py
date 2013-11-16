@@ -14,7 +14,8 @@ def schedule(
         temp_min=0.01,
         temp_max=1000,
         steps=50000,
-        report_interval=1000):
+        report_interval=1000,
+        logging=True):
 
     num_stands, num_mgmts, num_periods, num_variables = data.shape
 
@@ -75,6 +76,8 @@ def schedule(
         else:
             targets.append(None)
 
+    if logging:
+        fh = open("test_out.csv", 'w')
     for step in range(steps):
 
         # determine temperature
@@ -177,6 +180,7 @@ def schedule(
 
         accept = False
         improve = False
+        new_best = False
 
         delta = objective_metric - prev_metric
 
@@ -219,8 +223,22 @@ def schedule(
             best_metric = objective_metric
             best_metrics = objective_metrics
             best_vars_over_time = cumulative_by_time_period.copy()
+            new_best = True
 
+        if logging:
+            if not accept:
+                stype = "reject"
+            elif accept and not improve:
+                stype = "accept"
+            elif accept and improve and not new_best:
+                stype = "accept_improve"
+            elif new_best:
+                stype = "new best"
 
+            fh.write(','.join(str(x) for x in [step, objective_metric, stype, temp]))
+            fh.write("\n")
+
+    fh.close()
     return best_metric, best_mgmts, best_vars_over_time
 
 
@@ -260,7 +278,7 @@ if __name__ == '__main__':
         strategy_variables,
         adjacency,
         temp_min=sum(weights)/100.0,
-        temp_max=sum(weights)*100,
+        temp_max=sum(weights)*1000,
         steps=40000,
         report_interval=5000,
     )

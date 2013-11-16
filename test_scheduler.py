@@ -5,11 +5,11 @@ from scheduler import prep_data
 if __name__ == '__main__':
 
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
-        shp="data/test_stands2", 
-        db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+    # stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
+    #     shp="data/test_stands2", 
+    #     db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
 
-    #stand_data, axis_map, valid_mgmts = prep_data.from_random(45000, 56, 20, 6)
+    stand_data, axis_map, valid_mgmts = prep_data.from_random(450, 56, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
     #  cumulative_maximize : target the absolute highest cumulative value
@@ -42,8 +42,8 @@ if __name__ == '__main__':
         adjacency,
         temp_min=sum(weights)/100.0,
         temp_max=sum(weights)*100,
-        steps=40000,
-        report_interval=5000,
+        steps=20000,
+        report_interval=1000,
     )
 
     # Report results
