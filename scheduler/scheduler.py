@@ -5,12 +5,8 @@ import math
 
 def schedule(
         data,
-        strategies,
-        weights,
-        variable_names,
+        axis_map,
         valid_mgmts,
-        strategy_variables,
-        adjacency,
         temp_min=0.01,
         temp_max=1000,
         steps=50000,

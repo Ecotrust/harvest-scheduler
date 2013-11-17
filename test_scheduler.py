@@ -12,41 +12,60 @@ if __name__ == '__main__':
     stand_data, axis_map, valid_mgmts = prep_data.from_random(450, 56, 20, 6)
 
     # Pick a strategy for each stand rx time period variable
-    #  cumulative_maximize : target the absolute highest cumulative value
-    #  evenflow_target     : minimize variance around a target
-    #  evenflow            : minimize stddev over time
-    #  cumulative_minimize : treated as cost; target the lowest cumulative value
-    variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
-    strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
-    weights = [5.0, 5.0, 1.0, 1.0, 1.0, 1.0]
 
-    #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
-    #flow = [320, 40] * 10
-    flow = None  
-    strategy_variables = [None, flow, None, None, None, None]
-    #strategy_variables = [None] * 6
+    axis_map['variables'] = [
+        {   
+            'name': 'timber',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'harvest flow',
+            'strategy': 'evenflow', # minimize stddev over time
+            'weight': 1.0 },
+        # {   
+        #     'name': 'harvest flow',
+        #     'strategy': 'evenflow_target', # minimize variance around a target
+        #     'targets': [200] * 20  # single value or array of values per year
+        #     'weight': 1.0 },
+        {   
+            'name': 'carbon',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'owl habitat',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'fire hazard',
+            'strategy': 'cumulative_minimize', # target the min cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'cost proxy',
+            'strategy': 'cumulative_minimize', # target the min cumulative value
+            'weight': 1.0 },
 
-    adjacency = {
-        # 18: [19, 20],
-        # 19: [18, 17],
-        # 20: [18]
-    }
+        # {
+        #     'name': 'adjacency',
+        #     'strategy': 'adjacency',
+        #     'map': {
+        #         18: [19, 20],
+        #         19: [18, 17],
+        #         20: [18]
+        #     } },
+    ]
 
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
-        strategies,
-        weights,
-        variable_names,
+        axis_map,
         valid_mgmts,
-        strategy_variables,
-        adjacency,
-        temp_min=sum(weights)/100.0,
-        temp_max=sum(weights)*100,
+        temp_min=sum([x['weight'] for x in axis_map['variables']])/100.0,
+        temp_max=sum([x['weight'] for x in axis_map['variables']])*10,
         steps=20000,
-        report_interval=1000,
+        report_interval=500,
     )
 
     # Report results
+    variable_names = [x['name'] for x in axis_map['variables']]
     print "    ", " ".join(["%15s" % x for x in variable_names])
     print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
     for i, annual_vars in enumerate(vars_over_time.tolist()):
