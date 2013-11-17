@@ -16,11 +16,14 @@ if __name__ == '__main__':
     #  evenflow_target     : minimize variance around a target
     #  evenflow            : minimize stddev over time
     #  cumulative_minimize : treated as cost; target the lowest cumulative value
+
+    # These list have to match the number and order of the variables
+    # represented in the the 4thDim of the array
+    # TODO should prep_data return this with viable defaults? what about refactoring into a dict
     variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
     strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
     weights = [5.0, 5.0, 1.0, 1.0, 1.0, 1.0]
 
-    #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
     #flow = [320, 40] * 10
     flow = None  
     strategy_variables = [None, flow, None, None, None, None]
