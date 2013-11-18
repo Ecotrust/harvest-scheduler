@@ -41,3 +41,4 @@ alt_cython/data/*
 data/*
 cache.*
 .vagrant
+__*

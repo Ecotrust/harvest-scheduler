@@ -1,64 +1,73 @@
 from scheduler.scheduler import schedule
 from scheduler import prep_data
+from scheduler.utils import star_schedule
 from multiprocessing import Pool, cpu_count
 
 
-def star_schedule(args):
-    """
-    The target function for pool.map() can only take one argument
-    so we make that one argument a tuple of args and expand it with
-    this wrapper function
-    """
-    return schedule(*args)
-
-
 if __name__ == '__main__':
-
+ 
+    #----------- STEP 1: Read source data -------------------------------------#
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
-        shp="data/test_stands2", 
-        db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+    # stand_data, axis_map, valid_mgmts = prep_data.prep_shp_db(
+    #    shp="data/test_stands2", 
+    #    db="e:/git/growth-yield-batch/projects/__scheduler_test/final/data.db")
+    
+    stand_data, axis_map, valid_mgmts = prep_data.from_random(950, 56, 20, 6)
 
-    # stands, mgmts, timeperiods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.from_random(10000, 57, 20, 6)
+    #----------- STEP 2: Identify and configure variables ---------------------#
+    # THIS MUST MATCH THE DATA COMING FROM prep_data!!!
+    axis_map['variables'] = [  
+        {   
+            'name': 'timber',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'harvest flow',
+            'strategy': 'evenflow', # minimize stddev over time
+            'weight': 1.0 },
+        {   
+            'name': 'carbon',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'owl habitat',
+            'strategy': 'cumulative_maximize', # target the max cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'fire hazard',
+            'strategy': 'cumulative_minimize', # target the min cumulative value
+            'weight': 1.0 },
+        {   
+            'name': 'cost proxy',
+            'strategy': 'cumulative_minimize', # target the min cumulative value
+            'weight': 1.0 },
+        # {   
+        #     'name': 'harvest flow',
+        #     'strategy': 'evenflow_target', # minimize variance around a target
+        #     'targets': [200] * 20  # single value or array of values per year
+        #     'weight': 1.0 },
+    ]
 
-    # Pick a strategy for each stand rx time period variable
-    #  cumulative_maximize : target the absolute highest cumulative value
-    #  evenflow_target     : minimize variance around a target
-    #  evenflow            : minimize stddev over time
-    #  cumulative_minimize : treated as cost; target the lowest cumulative value
-    variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
-    strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
-    weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
-
-    #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
-    #flow = [320, 40] * 10
-    #strategy_variables = [None, flow, None, None]
-    strategy_variables = [None] * 6
-
-    adjacency = {
-        # 18: [19, 20],
-        # 19: [18, 17],
-        # 20: [18]
-    }
-
-    scheduler_args = ( 
+    #----------- STEP 3: Optimize (annealing over objective function) ---------#
+    #  This example uses multiprocessing to run several in parallel
+    scheduler_args = (
         stand_data,
-        strategies,
-        weights,
-        variable_names,
+        axis_map,
         valid_mgmts,
-        strategy_variables,
-        adjacency,
-        sum(weights)/100.0, # temp min
-        sum(weights)*100, # temp max
-        40000, # steps
-        2000, # report interval
+        0.006, # temp_min
+        20.0,  # temp_max 
+        20000, # steps
+        1000,  # report_interval
     )
 
     pool = Pool(processes=cpu_count())
     results = pool.map(star_schedule, [scheduler_args for x in range(cpu_count()-1)]) 
 
+    #----------- STEP 4: output results ---------------------------------------#
+    # print_results(axis_map, vars_over_time)
+    # write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename="test.csv")
+    
+    variable_names = [x['name'] for x in axis_map['variables']]
     print "    ", " ".join(["%15s" % "Obj Metric"] + ["%15s" % x for x in variable_names])
     print "----|" + "".join([("-" * 15) + "|" for x in variable_names + ['foo']])
     bests = []
