@@ -7,15 +7,27 @@ def schedule(
         data,
         axis_map,
         valid_mgmts,
-        temp_min=0.01,
-        temp_max=1000,
-        steps=50000,
+        temp_min=None,
+        temp_max=None,
+        steps=20000,
         report_interval=1000,
-        logging=True):
+        logfile='__schedule.log',
+        adjacency=False):
+
+    if not temp_min:
+        temp_min=sum([x['weight'] for x in axis_map['variables']])/1000.0
+
+    if not temp_max:
+        temp_max=sum([x['weight'] for x in axis_map['variables']])*10    
 
     num_stands, num_mgmts, num_periods, num_variables = data.shape
 
     stand_range = np.arange(num_stands).tolist()
+
+    strategies = [x['strategy'] for x in axis_map['variables']]
+    weights = [x['weight'] for x in axis_map['variables']]
+    variable_names = [x['name'] for x in axis_map['variables']]
+    strategy_variables = [x.get("targets", None) for x in axis_map['variables']]
 
     assert len(strategies) == num_variables
     assert len(weights) == num_variables
@@ -72,8 +84,10 @@ def schedule(
         else:
             targets.append(None)
 
-    if logging:
-        fh = open("test_out.csv", 'w')
+    fh = None
+    if logfile:
+        fh = open(logfile, 'w')
+
     for step in range(steps):
 
         # determine temperature
@@ -221,13 +235,13 @@ def schedule(
             best_vars_over_time = cumulative_by_time_period.copy()
             new_best = True
 
-        if logging:
+        if logfile and fh:
             if not accept:
                 stype = "reject"
             elif accept and not improve:
                 stype = "accept"
             elif accept and improve and not new_best:
-                stype = "accept_improve"
+                stype = "accept+improve"
             elif new_best:
                 stype = "new best"
 
@@ -237,58 +251,3 @@ def schedule(
     fh.close()
     return best_metric, best_mgmts, best_vars_over_time
 
-
-if __name__ == '__main__':
-    import prep_data
-
-    # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.from_shp_csv(shp="data/test_stands2", 
-                                                               csvdir="data/csvs2")
-
-    # Pick a strategy for each stand rx time period variable
-    #  cumulative_maximize : target the absolute highest cumulative value
-    #  evenflow_target     : minimize variance around a target
-    #  evenflow            : minimize stddev over time
-    #  cumulative_minimize : treated as cost; target the lowest cumulative value
-    variable_names = ['harvest', 'harvest flow', 'carbon', 'owl habitat', 'fire hazard', 'cost proxy']
-    strategies = ['cumulative_maximize', 'evenflow', 'cumulative_maximize', 'cumulative_maximize', 'cumulative_minimize', 'cumulative_minimize']
-    weights = [8.0, 4.0, 1.0, 1.0, 1.0, 1.0]
-
-    #flow = [250] * 2 + [140] * 6 + [500] + [100] * 11
-    flow = [320, 40] * 10
-    strategy_variables = [None, flow, None, None, None, None]
-    #strategy_variables = [None] * 6
-
-    adjacency = {
-        # 18: [19, 20],
-        # 19: [18, 17],
-        # 20: [18]
-    }
-
-    best, optimal_stand_rxs, vars_over_time = schedule(
-        stand_data,
-        strategies,
-        weights,
-        variable_names,
-        valid_mgmts,
-        strategy_variables,
-        adjacency,
-        temp_min=sum(weights)/100.0,
-        temp_max=sum(weights)*1000,
-        steps=40000,
-        report_interval=5000,
-    )
-
-    # Report results
-    print "Stand, Rx, Offset"
-    for i, osrx in enumerate(optimal_stand_rxs):
-        print ", ".join([str(x) for x in ([i] + list(axis_map['mgmt'][osrx]))])
-    print
-
-    print "    ", " ".join(["%15s" % x for x in variable_names])
-    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
-    for i, annual_vars in enumerate(vars_over_time.tolist()):
-        print "%4d" % i, " ".join(["%15d" % x for x in annual_vars])
-    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
-    print "sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])
-    print "mean", " ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])
