@@ -51,7 +51,7 @@ if __name__ == '__main__':
         stand_data,
         axis_map,
         valid_mgmts,
-        steps=20000,
+        steps=90000,
         report_interval=500,
         temp_min=0.006,
         temp_max=20   

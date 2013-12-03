@@ -1,6 +1,7 @@
 import numpy as np
 import json
 import math
+import sqlite3
 
 
 def from_random(stands, mgmts, timeperiods, numvars):
@@ -162,26 +163,32 @@ def calculate_metrics(line, stand):
     return data
 
 
-def get_stands(shp, default_site=2):
-    import shapefile
-    # TODO validate fields
-    sf = shapefile.Reader(shp)
-    fields = [x[0] for x in sf.fields[1:]]
-    for record in sf.iterRecords():
-        dd = dict(zip(fields, record))
-        raw_restricted_rxs = dd['rx']
+def get_stands(con, batch=None, default_site=2):
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+    if batch:
+        sql = """SELECT * FROM stands WHERE batch='%s';""" % batch
+    else:
+        sql = """SELECT * FROM stands;"""
+    for i, row in enumerate(cur.execute(sql)):
+        dd = dict(zip(row.keys(), row))  
         try:
-            dd['restricted_rxs'] = [int(x) for x in raw_restricted_rxs.split(",")]
-        except ValueError:
+            raw_restricted_rxs = dd['rx']
+            try:
+                dd['restricted_rxs'] = [int(x) for x in raw_restricted_rxs.split(",")]
+            except ValueError:
+                dd['restricted_rxs'] = None
+            del dd['rx']
+        except KeyError:
+            # no rx field, use every possible rx
             dd['restricted_rxs'] = None
-        del dd['rx']
+
         try:
-            dd['site'] = int(dd['site'])
+            dd['site'] = int(dd['sitecls'])
         except KeyError:
             dd['site'] = default_site
-        dd['acres'] = dd['ACRES']
-        dd['slope'] = dd['SLOPE_MEAN']
 
+        dd['cond'] = dd['standid']
         yield dd      
 
 
@@ -189,8 +196,7 @@ def handle_error(inputs):
     raise Exception("\nNo fvs outputs found for the following case (check your input shp):\n%s" % json.dumps(inputs, indent=2))
 
 
-def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, verbose=False):
-    import sqlite3
+def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False, verbose=False):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -207,10 +213,10 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
             pass  # calculate it
 
     # find all rx, offsets
-    axis_map = {'mgmt': []} 
+    axis_map = {'mgmt': [], 'standids': []} 
     sql = """
         SELECT rx, offset
-        FROM trees_fvsaggregate
+        FROM fvsaggregate
         GROUP BY rx, offset
     """
     for row in cursor.execute(sql):
@@ -219,9 +225,9 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
     valid_mgmts = [] # 2D array holding valid mgmt ids for each stand
     property_stands = []
 
-    for stand in get_stands(shp):
-        if verbose:
-            print stand['cond'], stand
+    for stand in get_stands(conn, batch):
+        #if verbose:
+        print stand['cond']
 
         temporary_mgmt_list = []
         stand_mgmts = []
@@ -241,7 +247,7 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
 
             sql = """
               SELECT *
-              FROM trees_fvsaggregate
+              FROM fvsaggregate
               WHERE var = '%(var)s'
               AND rx = %(rx)d
               AND cond = %(cond)d
@@ -266,7 +272,9 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
                 mgmt_timeperiods.append(yeardata)
 
             if empty:
-                handle_error(inputs)
+                # handle_error(inputs)
+                print "WARNING: skipping cond %s rx %s off %s" % (inputs['cond'], inputs['rx'], inputs['offset'])
+                break
 
             if stand['restricted_rxs']:
                 if rx in stand['restricted_rxs']:
@@ -278,8 +286,10 @@ def prep_shp_db(shp, db, variant="WC", climate="Ensemble-rcp60", cache=False, ve
             stand_mgmts.append(mgmt_timeperiods)
 
         if len(temporary_mgmt_list) == 0:
-            handle_error({'rxs': stand['restricted_rxs']})
+            #handle_error({'rxs': stand['restricted_rxs']})
+            continue
 
+        axis_map['standids'].append(stand['standid'])
         valid_mgmts.append(temporary_mgmt_list)
         property_stands.append(stand_mgmts)
 

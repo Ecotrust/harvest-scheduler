@@ -18,7 +18,7 @@ def write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename=None):
     with open(filename, 'w') as fh:
         fh.write("stand,rx,offset\n")
         for i, osrx in enumerate(optimal_stand_rxs):
-            txtrow = ",".join([str(x) for x in ([i] + list(axis_map['mgmt'][osrx]))])
+            txtrow = ",".join([str(x) for x in ([axis_map['standids'][i]] + list(axis_map['mgmt'][osrx]))])
             fh.write(txtrow + "\n")
     print 
     print "Optimal stand management (rx, offset) written to " + filename
