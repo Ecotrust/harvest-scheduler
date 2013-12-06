@@ -226,8 +226,8 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
     property_stands = []
 
     for stand in get_stands(conn, batch):
-        #if verbose:
-        print stand['cond']
+        if verbose:
+            print stand['cond']
 
         temporary_mgmt_list = []
         stand_mgmts = []
@@ -272,7 +272,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
                 mgmt_timeperiods.append(yeardata)
 
             if empty:
-                # handle_error(inputs)
+                #handle_error(inputs)
                 print "WARNING: skipping cond %s rx %s off %s" % (inputs['cond'], inputs['rx'], inputs['offset'])
                 break
 

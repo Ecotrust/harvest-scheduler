@@ -11,14 +11,15 @@ def print_results(axis_map, vars_over_time):
     print "mean", " ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])
 
 # write csv
-def write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename=None):
+def write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename=None, climate=None):
     if not filename:
         filename = "__optimal_stand_mgmt.csv"
 
     with open(filename, 'w') as fh:
-        fh.write("stand,rx,offset\n")
+        fh.write("stand,rx,offset,climate\n")
         for i, osrx in enumerate(optimal_stand_rxs):
-            txtrow = ",".join([str(x) for x in ([axis_map['standids'][i]] + list(axis_map['mgmt'][osrx]))])
+            txtrow = ",".join([str(x) for x in ([axis_map['standids'][i]] + 
+                list(axis_map['mgmt'][osrx])) + [str(climate)]])
             fh.write(txtrow + "\n")
     print 
     print "Optimal stand management (rx, offset) written to " + filename
