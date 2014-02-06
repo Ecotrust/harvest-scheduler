@@ -155,11 +155,15 @@ def schedule(
 
             elif strategy == 'evenflow':
                 values = cumulative_by_time_period[:, s]
-                # property-level standard deviation of THIS variable over time
-                property_stddev = values.std(axis=0)
+                # property-level variance of THIS variable over time
+                property_variance = values.var(axis=0)
+
+                maxval = theoretical_maxes[s]
+                minval = theoretical_mins[s]
+                range_by_period = (maxval - minval) / float(num_periods)
 
                 # TODO make evenflow return a number scaled 0-100
-                objective_metrics.append(property_stddev * weights[s])
+                objective_metrics.append(property_variance / range_by_period * weights[s] * 100)
 
             elif strategy == 'evenflow_target':
                 values = cumulative_by_time_period[:, s]

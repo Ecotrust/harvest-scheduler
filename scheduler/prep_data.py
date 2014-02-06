@@ -201,6 +201,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
+            
     # Check cache
     if cache:
         try:
@@ -211,6 +212,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
             return stand_data, axis_map, valid_mgmts
         except:
             pass  # calculate it
+
 
     # find all rx, offsets
     axis_map = {'mgmt': [], 'standids': []} 
@@ -300,6 +302,90 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
     with open('cache.axis_map', 'w') as fh:
         fh.write(json.dumps(axis_map, indent=2))
     with open('cache.valid_mgmts', 'w') as fh:
+        fh.write(json.dumps(valid_mgmts, indent=2))
+
+    return arr, axis_map, valid_mgmts
+
+
+def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    # Check cache
+    if cache:
+        try:
+            stand_data = np.load('cache.array.%s.npy' % cache)
+            axis_map = json.loads(open('cache.axis_map.%s.json' % climate).read())
+            valid_mgmts = json.loads(open('cache.valid_mgmts.%s.json' % climate).read())
+            print "Using cached data to reduce calculation time..."
+            return stand_data, axis_map, valid_mgmts
+        except:
+            pass  # calculate it
+
+    axis_map = {'mgmt': [], 'standids': []} 
+
+    # Get all unique stands
+    sql = "SELECT distinct(standid) FROM fvs_stands"
+    for row in cursor.execute(sql):
+        axis_map['standids'].append(row['standid'])
+
+    # Get all unique mgmts
+    sql = 'SELECT rx, "offset" FROM fvs_stands GROUP BY rx, "offset"'
+    for row in cursor.execute(sql):
+        # mgmt is a tuple of rx and offset
+        axis_map['mgmt'].append((row['rx'], row['offset']))
+ 
+    valid_mgmts = [] # 2D array holding valid mgmt ids for each stand
+    
+    list4D = []
+    for standid in axis_map['standids']:
+        if verbose:
+            print standid
+
+        temporary_mgmt_list = []
+        list3D = []
+        for i, mgmt in enumerate(axis_map['mgmt']):
+            rx, offset = mgmt
+            if verbose:
+                print "\t", rx, offset
+
+            sql = """SELECT year, carbon, timber as timber, owl, cost
+                from fvs_stands
+                WHERE standid = '%(standid)s'
+                and rx = %(rx)d
+                and "offset" = %(offset)d
+                and climate = '%(climate)s'; 
+                -- original table MUST be ordered by standid, year
+            """ % locals()
+
+            list2D = [ map(float, [r['timber'], r['carbon'], r['owl'], r['cost']]) for r in cursor.execute(sql)]
+            if list2D == []:
+                list2D = [[0.0, 0.0, 0.0, 0.0]] * 20
+            else:
+                temporary_mgmt_list.append(i)
+
+            ## Instead we assume that if it's in fvs_stands, we consider it
+            # if stand['restricted_rxs']:
+            #     if rx in stand['restricted_rxs']:
+            #         temporary_mgmt_list.append(mgmt_id)
+            # else:
+            #     temporary_mgmt_list.append(mgmt_id)
+            #assert len(list2D) == 20
+
+            list3D.append(list2D)
+
+        list4D.append(list3D)
+
+        assert len(temporary_mgmt_list) > 0
+        valid_mgmts.append(temporary_mgmt_list)
+
+    arr = np.asarray(list4D, dtype=np.float32)
+
+    # caching
+    np.save('cache.array.%s' % cache, arr)
+    with open('cache.axis_map.%s.json' % cache, 'w') as fh:
+        fh.write(json.dumps(axis_map, indent=2))
+    with open('cache.valid_mgmts.%s.json' % cache, 'w') as fh:
         fh.write(json.dumps(valid_mgmts, indent=2))
 
     return arr, axis_map, valid_mgmts

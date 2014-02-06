@@ -1,6 +1,5 @@
 import sys
-sys.path.append('e:/git/harvest-scheduler')
-#sys.path.append('e:/git/harvest-scheduler/scheduler')
+sys.path.append('~/src/harvest-scheduler')
 from scheduler.scheduler import schedule
 from scheduler import prep_data
 from scheduler.utils import print_results, write_stand_mgmt_csv
@@ -26,8 +25,7 @@ for climate in climates:
 
     #----------- STEP 1: Read source data -------------------------------------#
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_data.prep_db(db="master.sqlite", 
-        batch="PN1B", climate=climate)
+    stand_data, axis_map, valid_mgmts = prep_data.prep_db(db="master.sqlite", batch="PN1B", climate=climate)
 
     #----------- STEP 2: Identify and configure variables ---------------------#
     # THIS MUST MATCH THE DATA COMING FROM prep_data!!!
