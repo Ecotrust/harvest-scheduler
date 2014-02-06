@@ -1,3 +1,9 @@
+"""
+BLM Harvest Scheduler
+Requires a sqlite database with a pre-processed table, fvs_stands
+fvs_stands is derived from the outputs of the growth-yield-batch process and 
+is created using the sql query in scripts/prep_scheduler.sql
+"""
 import sys
 sys.path.insert(0, '/home/mperry/src/harvest-scheduler')
 from scheduler.scheduler import schedule
