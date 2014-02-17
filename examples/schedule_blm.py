@@ -7,7 +7,6 @@ is created using the sql query in scripts/prep_scheduler.sql
 import sys
 sys.path.insert(0, '/home/mperry/src/harvest-scheduler')
 from scheduler.scheduler import schedule
-# from scheduler import prep_data
 from scheduler.utils import print_results, write_stand_mgmt_csv
 import sqlite3
 import numpy as np
@@ -134,14 +133,14 @@ for climate in climates:
     210 mmbf: 2005-2010 annual average 
     502 mmbf: PRMP (proposed resource management plan)
     727 mmbf: the allowable sale quantity max (alternative 2)
-
     # annual target ->  convert to mbf, divide to the 5% subset, times 5 time periods
     # mmbf_target*1000*0.05*5  = mmbf * 250
     # before, multiply by 
     # afterwards divide by 250 to get mmbf per year 
     """
-    mmbf_target = 502
+    mmbf_target = 302
     period_target = mmbf_target*1000*0.05*5
+    print period_target, " TO ", period_target * 1.1
 
     axis_map['variables'] = [  
         {   
@@ -150,10 +149,6 @@ for climate in climates:
             #'strategy': 'cumulative_maximize', 'targets': [period_target] * 20,
             'strategy': 'within_bounds', 'targets': ([period_target] * 20, [period_target * 1.1] * 20),
             'weight': 5.0 },
-        # {
-        #     'name': 'evenflow',
-        #     'strategy': 'evenflow',
-        #     'weight': 0.0000000000001 },
         {   
             'name': 'carbon',
             'strategy': 'cumulative_maximize',
@@ -174,7 +169,7 @@ for climate in climates:
         stand_data,
         axis_map,
         valid_mgmts,
-        steps=2500,
+        steps=12500,
         report_interval=1000,
         temp_min=1e-15,
         temp_max=1.0
@@ -190,4 +185,3 @@ for climate in climates:
             fh.write("\n")
 
     write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename="%s_stands_rx.csv" % climate, climate=climate)
-

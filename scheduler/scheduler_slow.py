@@ -2,7 +2,6 @@
 import random
 import numpy as np
 import math
-import time
 
 def schedule(
         data,
@@ -42,9 +41,10 @@ def schedule(
         if valid_mgmts[s]:
             mgmts[s] = valid_mgmts[s][0]
 
-    # use numpy indexing to select only the desired mgmt of each stand and collapse accross stands
-    vars_over_time = data[stand_range, mgmts].sum(axis=0)
-    prev_vars_over_time = vars_over_time.copy()
+    # use numpy indexing to select only the desired mgmt of each stand
+    # effectively collapses array on mgmts axis to a 3D array (stands x periods x variables)
+    selected = data[stand_range, mgmts].copy()
+    prev_selected = selected.copy()
 
     best_metric = float('inf')
     best_mgmts = mgmts[:]
@@ -105,8 +105,6 @@ def schedule(
     if logfile:
         fh = open(logfile, 'w')
 
-    select_sum_time = 0
-
     for step in range(steps):
 
         # determine temperature
@@ -144,20 +142,17 @@ def schedule(
         # except KeyError:
         #     pass
 
-        # Calculate the diff to vars_over_time due to the change in mgmt
-        olddata = data[new_stand, old_mgmt]
-        newdata = data[new_stand, new_mgmt]
-        diff = newdata - olddata
+        # modify selected data and replace it out with the new move
+        selected[new_stand] = data[new_stand, new_mgmt]
 
         # 2D array
         # time periods x sum of each variable over all stands
-        # apply diff 
-        vars_over_time += diff
+        cumulative_by_time_period = selected.sum(axis=0)
 
         # 1D array
         # useful for cumulative maximize/target
         # property-level cumulative sum of each variable
-        property_cumulative = vars_over_time.sum(axis=0)
+        property_cumulative = cumulative_by_time_period.sum(axis=0)
 
         objective_metrics = []
 
@@ -176,7 +171,7 @@ def schedule(
                 objective_metrics.append(100*((maxval - cumval) / float(maxval - minval)) * weights[s])
 
             elif strategy == 'evenflow':
-                values = vars_over_time[:, s]
+                values = cumulative_by_time_period[:, s]
                 # property-level variance of THIS variable over time
                 property_variance = values.var(axis=0)
 
@@ -188,7 +183,7 @@ def schedule(
                 objective_metrics.append(property_variance / range_by_period * weights[s] * 100)
 
             elif strategy == 'within_bounds':
-                values = vars_over_time[:, s]
+                values = cumulative_by_time_period[:, s]
                 periods = values.shape[0]
                 maxval = theoretical_maxes[s]
                 minval = theoretical_mins[s]
@@ -204,7 +199,7 @@ def schedule(
                 objective_metrics.append((outofbounds / refval) * 100 * weights[s])
                 
             elif strategy == 'evenflow_target':
-                values = vars_over_time[:, s]
+                values = cumulative_by_time_period[:, s]
 
                 maxval = theoretical_maxes[s]
                 minval = theoretical_mins[s]
@@ -237,6 +232,7 @@ def schedule(
         delta = objective_metric - prev_metric
 
         rand = np.random.uniform()
+        print delta, temp, rand
         if delta < 0.0:  # an improvement
             accept = True
             improve = True
@@ -263,18 +259,18 @@ def schedule(
 
         if accept:
             prev_mgmts = mgmts[:]  # record new mgmts
-            prev_vars_over_time = vars_over_time.copy()
+            prev_selected = selected.copy()
             prev_metric = objective_metric
             accepts += 1
         else:
             mgmts = prev_mgmts[:]  # restore previous mgmts
-            vars_over_time = prev_vars_over_time.copy()
+            selected = prev_selected.copy()
 
         if objective_metric < best_metric:
             best_mgmts = mgmts[:]
             best_metric = objective_metric
             best_metrics = objective_metrics
-            best_vars_over_time = vars_over_time[:]
+            best_vars_over_time = cumulative_by_time_period.copy()
             new_best = True
 
         if logfile and fh:
@@ -289,8 +285,6 @@ def schedule(
 
             fh.write(','.join(str(x) for x in [step, objective_metric, stype, temp]))
             fh.write("\n")
-
-    print "Select sum time: ", select_sum_time
 
     if fh:
         fh.close()
