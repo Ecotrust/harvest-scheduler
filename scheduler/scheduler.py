@@ -11,13 +11,13 @@ def schedule(
         temp_max=None,
         steps=20000,
         report_interval=1000,
-        logfile='__schedule.log',
+        logfile=None,
         adjacency=False):
 
-    if not temp_min:
+    if temp_min is None:
         temp_min=sum([x['weight'] for x in axis_map['variables']])/1000.0
 
-    if not temp_max:
+    if temp_max is None:
         temp_max=sum([x['weight'] for x in axis_map['variables']])*10    
 
     num_stands, num_mgmts, num_periods, num_variables = data.shape
@@ -71,6 +71,8 @@ def schedule(
 
     # property-level targets over time for evenflow_target variables
     targets = []
+    uppers = [] 
+    lowers = []
     for s, strategy in enum_strategies:
         if strategy == 'evenflow_target':
             target_per_period = strategy_variables[s]
@@ -81,7 +83,22 @@ def schedule(
             except TypeError:
                 # it's a scalar
                 targets.append(np.array([target_per_period] * num_periods))
+
+        if strategy == 'within_bounds':
+            lower, upper = strategy_variables[s]
+            try:
+                assert len(upper) == len(lower) == num_periods
+                # it's a list
+                uppers.append(np.array(upper))
+                lowers.append(np.array(lower))
+            except (TypeError, AssertionError):
+                # it's a scalar?
+                uppers.append(np.array([upper] * num_periods))
+                lowers.append(np.array([lower] * num_periods))
+
         else:
+            uppers.append(None)
+            lowers.append(None)
             targets.append(None)
 
     fh = None
@@ -165,6 +182,22 @@ def schedule(
                 # TODO make evenflow return a number scaled 0-100
                 objective_metrics.append(property_variance / range_by_period * weights[s] * 100)
 
+            elif strategy == 'within_bounds':
+                values = cumulative_by_time_period[:, s]
+                periods = values.shape[0]
+                maxval = theoretical_maxes[s]
+                minval = theoretical_mins[s]
+                refval = ((maxval-minval)/periods)
+
+                below = lowers[s] - values
+                below = below[below > 0] # positive values are below the min
+
+                above = values - uppers[s]
+                above = above[above > 0] # positive values are above the max
+
+                outofbounds = below.sum() + above.sum()
+                objective_metrics.append((outofbounds / refval) * 100 * weights[s])
+                
             elif strategy == 'evenflow_target':
                 values = cumulative_by_time_period[:, s]
 
@@ -172,9 +205,9 @@ def schedule(
                 minval = theoretical_mins[s]
                 range_by_period = (maxval - minval) / float(num_periods)
 
-                # absolute val but double penalty for going *below* target
                 diffs = values - targets[s]
-                diffs[diffs < 0] *= -2
+                # absolute val but 10x penalty for going *below* target
+                diffs[diffs < 0] *= -10
                 # diffs = np.absolute(values - targets[s])
 
                 scaled_sum_diffs = 100 * ((diffs / (range_by_period/2.0))).mean()
@@ -199,6 +232,7 @@ def schedule(
         delta = objective_metric - prev_metric
 
         rand = np.random.uniform()
+        print delta, temp, rand
         if delta < 0.0:  # an improvement
             accept = True
             improve = True
@@ -252,6 +286,7 @@ def schedule(
             fh.write(','.join(str(x) for x in [step, objective_metric, stype, temp]))
             fh.write("\n")
 
-    fh.close()
+    if fh:
+        fh.close()
     return best_metric, best_mgmts, best_vars_over_time
 

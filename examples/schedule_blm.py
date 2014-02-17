@@ -7,7 +7,7 @@ is created using the sql query in scripts/prep_scheduler.sql
 import sys
 sys.path.insert(0, '/home/mperry/src/harvest-scheduler')
 from scheduler.scheduler import schedule
-from scheduler import prep_data
+# from scheduler import prep_data
 from scheduler.utils import print_results, write_stand_mgmt_csv
 import sqlite3
 import numpy as np
@@ -146,26 +146,27 @@ for climate in climates:
     axis_map['variables'] = [  
         {   
             'name': 'timber',
-            'strategy': 'evenflow_target',
-            # 'strategy': 'cumulative_maximize',
-            'targets': [period_target] * 20,
-            'weight': 150.0 },
-        {   
-            'name': 'carbon',
-            'strategy': 'cumulative_maximize',
-            'weight': 0.1 },
-        {   
-            'name': 'owl habitat',
-            'strategy': 'cumulative_maximize',
-            'weight': 0.1 },
-        {   
-            'name': 'cost proxy',
-            'strategy': 'cumulative_minimize',
-            'weight': 0.1 },
+            #'strategy': 'evenflow_target',
+            #'strategy': 'cumulative_maximize', 'targets': [period_target] * 20,
+            'strategy': 'within_bounds', 'targets': ([period_target] * 20, [period_target * 1.1] * 20),
+            'weight': 5.0 },
         # {
         #     'name': 'evenflow',
         #     'strategy': 'evenflow',
-        #     'weight': 0.1 },
+        #     'weight': 0.0000000000001 },
+        {   
+            'name': 'carbon',
+            'strategy': 'cumulative_maximize',
+            'weight': 1.0 },
+        {   
+            'name': 'owl habitat',
+            'strategy': 'cumulative_maximize',
+            'weight': 1.0 },
+        {   
+            'name': 'cost proxy',
+            'strategy': 'cumulative_minimize',
+            'weight': 1.0 },
+
     ]
 
     #----------- STEP 3: Optimize (annealing over objective function) ---------#
@@ -173,10 +174,10 @@ for climate in climates:
         stand_data,
         axis_map,
         valid_mgmts,
-        steps=25000,
-        report_interval=2000,
-        temp_min=1.0/1e+88,
-        temp_max=10.0
+        steps=2500,
+        report_interval=1000,
+        temp_min=1e-15,
+        temp_max=1.0
     )
 
     #----------- STEP 4: output results ---------------------------------------#
