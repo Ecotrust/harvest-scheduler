@@ -164,8 +164,6 @@ for climate in climates:
 
     ]
 
-    import pprint
-    pprint.pprint(axis_map)
 
     #----------- STEP 3: Optimize (annealing over objective function) ---------#
     best_start = float("inf")
@@ -187,7 +185,7 @@ for climate in climates:
         stand_data,
         axis_map,
         valid_mgmts,
-        steps=55000,
+        steps=255000,
         report_interval=1000,
         temp_min=0.00005,
         temp_max=2.0,
