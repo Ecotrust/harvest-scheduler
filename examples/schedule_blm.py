@@ -6,7 +6,7 @@ is created using the sql query in scripts/prep_scheduler.sql
 """
 import sys
 sys.path.insert(0, '/home/mperry/src/harvest-scheduler')
-from scheduler.scheduler import schedule
+from scheduler.scheduler_graph import schedule
 from scheduler.utils import print_results, write_stand_mgmt_csv
 import sqlite3
 import numpy as np
@@ -164,18 +164,38 @@ for climate in climates:
 
     ]
 
+    import pprint
+    pprint.pprint(axis_map)
+
     #----------- STEP 3: Optimize (annealing over objective function) ---------#
+    best_start = float("inf")
+    for i in range(1):
+        best, optimal_stand_rxs, vars_over_time = schedule(
+            stand_data,
+            axis_map,
+            valid_mgmts,
+            steps=5000 + (1000*i),
+            report_interval=1000,
+            temp_min=1e-5,
+            temp_max=5.0
+        )
+        if best < best_start:
+            best_start = best
+            best_mgmts = optimal_stand_rxs
+
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
         axis_map,
         valid_mgmts,
-        steps=12500,
+        steps=55000,
         report_interval=1000,
-        temp_min=1e-15,
-        temp_max=1.0
+        temp_min=0.00005,
+        temp_max=2.0,
+        starting_mgmts=best_mgmts,
+        live_plot=True
     )
 
-    #----------- STEP 4: output results ---------------------------------------#
+    #----------- STEP 4: output results ---------------------------------------#,
     print_results(axis_map, vars_over_time)
 
     with open("results.csv", 'a') as fh:
@@ -185,3 +205,4 @@ for climate in climates:
             fh.write("\n")
 
     write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename="%s_stands_rx.csv" % climate, climate=climate)
+    #import ipdb; ipdb.set_trace()
