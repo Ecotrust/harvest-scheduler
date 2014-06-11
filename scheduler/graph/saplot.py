@@ -1,9 +1,12 @@
-from pylab import plt
+from pylab import rcParams #plt
+import matplotlib.pyplot as plt
 from collections import deque
+
+rcParams['figure.figsize'] = (12,8)
 
 class AnalogPlot:
     def __init__(self, width):
-        # set plot to animated
+        plt.ion() # set plot to animated
         self.x1s = [0]
         self.y1s = [0]
         self.x2s = [0]
@@ -13,13 +16,13 @@ class AnalogPlot:
         self.plt1, self.plt2, self.plt3 = plt.plot(
             self.x1s, self.y1s, 'rx',
             self.x2s, self.y2s, 'b.',
-            self.x3s, self.y3s, 'gs',
+            self.x3s, self.y3s, 'go',
             alpha=0.05, linewidth=3)
         self.latest = deque([0] * 20)
-        self.plt3.set_alpha = 0.8
+        self.plt3.set_alpha(0.1)
         plt.ylim([0, 100])
         plt.xlim([0, width])
-        plt.ion()
+
 
 
     # update plot
@@ -48,5 +51,6 @@ class AnalogPlot:
         self.plt3.set_xdata(self.x3s)
         self.plt3.set_ydata(self.y3s)
         # import ipdb; ipdb.set_trace()
-        plt.ylim([min(self.latest)*0.9, max(self.latest)])
+        plt.subplot(111)
+        plt.ylim([min(self.latest)*0.9, max(self.latest)*1.1])
         plt.draw()

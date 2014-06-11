@@ -2,7 +2,10 @@
 import random
 import numpy as np
 import math
-import time
+import json
+import redis
+
+rc = redis.Redis()
 
 def schedule(
         data,
@@ -145,16 +148,13 @@ def schedule(
         # might exceed regulatory limits
         adjacency_penalty = 0
         # TODO 
-        # try:
-        #     adj_stands = adjacency[new_stand]
-        #     harvest = selected[:, :, 1]
-        #     harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
-        #     # TODO - don't hardcode
-        #     MAX_HARVEST_CLUMP = 75
-        #     if harvest_clump.max() > MAX_HARVEST_CLUMP:
-        #         adjacency_penalty = 1000
-        # except KeyError:
-        #     pass
+        # adj_stands = adjacency[new_stand]
+        # harvest = selected[:, :, 1]
+        # harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
+        # # TODO - don't hardcode
+        # MAX_HARVEST_CLUMP = 75
+        # if harvest_clump.max() > MAX_HARVEST_CLUMP:
+        #     adjacency_penalty = 1000
 
         # Calculate the diff to vars_over_time due to the change in mgmt
         olddata = data[new_stand, old_mgmt]
@@ -268,6 +268,9 @@ def schedule(
                                                                 [a / b for a, b in zip(best_metrics, weights)])])
             print 
             if live_plot:
+                rc.publish("test_channel", 
+                    json.dumps({'plot_cache': plot_cache})
+                )
                 analog_plot.append(plot_cache)
                 plot_cache = []
             improves = 0
@@ -304,6 +307,7 @@ def schedule(
                 stype = "newbest"  
             
             plot_cache.append((objective_metric, step, stype, best_metric))
+            
 
         if logfile and fh:
             if not accept:

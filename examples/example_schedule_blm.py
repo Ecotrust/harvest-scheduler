@@ -5,14 +5,14 @@ fvs_stands is derived from the outputs of the growth-yield-batch process and
 is created using the sql query in scripts/prep_scheduler.sql
 """
 import sys
-sys.path.insert(0, '/home/mperry/src/harvest-scheduler')
+sys.path.insert(0, '/usr/local/apps/harvest-scheduler')
 from scheduler.scheduler_graph import schedule
 from scheduler.utils import print_results, write_stand_mgmt_csv
 import sqlite3
 import numpy as np
 import json
  
-def prep_db2(db="../master.sqlite", climate="Ensemble-rcp60", cache=None, verbose=False):
+def prep_db2(db="./master.sqlite", climate="Ensemble-rcp60", cache=None, verbose=False):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -54,7 +54,7 @@ def prep_db2(db="../master.sqlite", climate="Ensemble-rcp60", cache=None, verbos
             if verbose:
                 print "\t", rx, offset
 
-            sql = """SELECT year, carbon, timber as timber, owl, cost
+            sql = """SELECT year, timber as timber, carbon, owl, fire, cost
                 from fvs_stands
                 WHERE standid = '%(standid)s'
                 and rx = %(rx)d
@@ -63,9 +63,10 @@ def prep_db2(db="../master.sqlite", climate="Ensemble-rcp60", cache=None, verbos
                 -- original table MUST be ordered by standid, year
             """ % locals()
 
-            list2D = [ map(float, [r['timber'], r['carbon'], r['owl'], r['cost']]) for r in cursor.execute(sql)]
+            list2D = [ map(float, [r['timber'], r['carbon'], r['owl'], 
+                                   r['fire'], r['cost']]) for r in cursor.execute(sql)]
             if list2D == []:
-                list2D = [[0.0, 0.0, 0.0, 0.0]] * 20
+                list2D = [[0.0, 0.0, 0.0, 0.0, 0.0]] * 20
             else:
                 temporary_mgmt_list.append(i)
 
@@ -98,25 +99,21 @@ def prep_db2(db="../master.sqlite", climate="Ensemble-rcp60", cache=None, verbos
 
 
 climates = [
-    #"CCSM4-rcp45",
-    #"CCSM4-rcp60",
-    #"CCSM4-rcp85",
+    "CCSM4-rcp45",
+    "CCSM4-rcp85",
     "Ensemble-rcp45",
-    "Ensemble-rcp60",
     "Ensemble-rcp85",
-    #"GFDLCM3-rcp45",
-    #"GFDLCM3-rcp60",
-    #"GFDLCM3-rcp85",
-    #"HadGEM2ES-rcp45",
-    #"HadGEM2ES-rcp60",
-    #"HadGEM2ES-rcp85",
+    "GFDLCM3-rcp45",
+    "GFDLCM3-rcp85",
+    "HadGEM2ES-rcp45",
+    "HadGEM2ES-rcp85",
     "NoClimate",
     ]
 
-climates = ['NoClimate']
+# climates = ['NoClimate']
 
 with open("results.csv", 'w') as fh:
-    fh.write("year,climate,timber,carbon,owl,cost")
+    fh.write("year,climate,timber,carbon,owl,fire,cost")
     fh.write("\n")
 
 for climate in climates:
@@ -124,7 +121,8 @@ for climate in climates:
 
     #----------- STEP 1: Read source data -------------------------------------#
     # 4D: stands, rxs, time periods, variables
-    stand_data, axis_map, valid_mgmts = prep_db2(db="../master.sqlite", climate=climate, cache=climate)
+    stand_data, axis_map, valid_mgmts = prep_db2(db="./master.sqlite", 
+                                                 climate=climate, cache=climate)
 
     #----------- STEP 2: Identify and configure variables ---------------------#
     # THIS MUST MATCH THE DATA COMING FROM prep_data!!!
@@ -133,22 +131,22 @@ for climate in climates:
     210 mmbf: 2005-2010 annual average 
     502 mmbf: PRMP (proposed resource management plan)
     727 mmbf: the allowable sale quantity max (alternative 2)
-    # annual target ->  convert to mbf, divide to the 5% subset, times 5 time periods
-    # mmbf_target*1000*0.05*5  = mmbf * 250
+    # annual target ->  convert to mbf, divide to the 4.77% subset, times 5 time periods
+    # mmbf_target*1000*0.0477*5  = mmbf * 238.5
     # before, multiply by 
-    # afterwards divide by 250 to get mmbf per year 
+    # afterwards divide by 238.5 to get mmbf per year 
     """
-    mmbf_target = 302
-    period_target = mmbf_target*1000*0.05*5
-    print period_target, " TO ", period_target * 1.1
+    mmbf_target = 502
+    period_target = mmbf_target*1000*0.0477*5
+    print period_target, " TO ", period_target * 1.05
 
     axis_map['variables'] = [  
         {   
             'name': 'timber',
             #'strategy': 'evenflow_target',
             #'strategy': 'cumulative_maximize', 'targets': [period_target] * 20,
-            'strategy': 'within_bounds', 'targets': ([period_target] * 20, [period_target * 1.1] * 20),
-            'weight': 5.0 },
+            'strategy': 'within_bounds', 'targets': ([period_target * 0.99] * 20, [period_target * 1.05] * 20),
+            'weight': 6.0 },
         {   
             'name': 'carbon',
             'strategy': 'cumulative_maximize',
@@ -156,6 +154,12 @@ for climate in climates:
         {   
             'name': 'owl habitat',
             'strategy': 'cumulative_maximize',
+            'weight': 1.0 },
+        {   
+            'name': 'fire risk',
+            #'strategy': 'cumulative_minimize',
+            'strategy': 'within_bounds', 
+            'targets': ([0] * 20, [15000] * 20),
             'weight': 1.0 },
         {   
             'name': 'cost proxy',
@@ -166,6 +170,8 @@ for climate in climates:
 
 
     #----------- STEP 3: Optimize (annealing over objective function) ---------#
+
+    # Do a quick run to get a good starting condition
     best_start = float("inf")
     for i in range(1):
         best, optimal_stand_rxs, vars_over_time = schedule(
@@ -181,16 +187,17 @@ for climate in climates:
             best_start = best
             best_mgmts = optimal_stand_rxs
 
+    # Now run the full schedule
     best, optimal_stand_rxs, vars_over_time = schedule(
         stand_data,
         axis_map,
         valid_mgmts,
         steps=255000,
-        report_interval=1000,
+        report_interval=5000,
         temp_min=0.00005,
-        temp_max=2.0,
+        temp_max=20.0,
         starting_mgmts=best_mgmts,
-        live_plot=True
+        live_plot=False
     )
 
     #----------- STEP 4: output results ---------------------------------------#,
