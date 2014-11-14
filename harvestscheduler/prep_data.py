@@ -4,12 +4,15 @@ import math
 import sqlite3
 
 
-def from_random(stands, mgmts, timeperiods, numvars):
+def from_random(stands, mgmts, timeperiods, numvars, low=4, high=14):
     # consistently generate a random set
     np.random.seed(42)
     # 4D: stands, mgmts, time periods, variables
-    stand_data = np.random.randint(4, 14, size=(stands, mgmts, timeperiods, numvars))
-    axis_map = {'mgmt': [(x, '00') for x in range(stand_data.shape[1])]}
+    stand_data = np.random.randint(low, high, size=(stands, mgmts, timeperiods, numvars))
+    axis_map = {
+      'mgmt': [(x, '00') for x in range(stand_data.shape[1])],
+      'standids': list(range(stands))
+    }
     valid_mgmts = [[] for x in range(stand_data.shape[0])]
 
     return stand_data, axis_map, valid_mgmts

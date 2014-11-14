@@ -1,8 +1,10 @@
 # encoding: utf-8
+from __future__ import absolute_import
 import random
 import numpy as np
 import math
-import time
+import json
+
 
 def schedule(
         data,
@@ -13,7 +15,13 @@ def schedule(
         steps=20000,
         report_interval=1000,
         logfile=None,
-        adjacency=False):
+        adjacency=False,
+        starting_mgmts=None,
+        live_plot=False):
+
+    if live_plot:
+        import redis
+        rc = redis.Redis()
 
     if temp_min is None:
         temp_min=sum([x['weight'] for x in axis_map['variables']])/1000.0
@@ -36,7 +44,11 @@ def schedule(
     assert len(valid_mgmts) == num_stands
 
     # initial mgmt
-    mgmts = [random.randrange(num_mgmts) for x in range(num_stands)]
+    if starting_mgmts:
+        mgmts = starting_mgmts[:]
+    else:
+        mgmts = [random.randrange(num_mgmts) for x in range(num_stands)]
+
     # make sure each stand's mgmt starts with a valid mgmt
     for s, mgmt in enumerate(mgmts):
         if valid_mgmts[s]:
@@ -105,12 +117,18 @@ def schedule(
     if logfile:
         fh = open(logfile, 'w')
 
+    if live_plot:
+        from harvestscheduler.plot import AnalogPlot
+        analog_plot = AnalogPlot(steps)
+        plot_cache = []
+
     select_sum_time = 0
+    fsteps = float(steps)
 
     for step in range(steps):
 
         # determine temperature
-        temp = temp_max * math.exp(temp_factor * step / steps)
+        temp = temp_max * math.exp(temp_factor * step / fsteps)
 
         actual_change = False
         while not actual_change:
@@ -133,16 +151,13 @@ def schedule(
         # might exceed regulatory limits
         adjacency_penalty = 0
         # TODO 
-        # try:
-        #     adj_stands = adjacency[new_stand]
-        #     harvest = selected[:, :, 1]
-        #     harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
-        #     # TODO - don't hardcode
-        #     MAX_HARVEST_CLUMP = 75
-        #     if harvest_clump.max() > MAX_HARVEST_CLUMP:
-        #         adjacency_penalty = 1000
-        # except KeyError:
-        #     pass
+        # adj_stands = adjacency[new_stand]
+        # harvest = selected[:, :, 1]
+        # harvest_clump = harvest[([new_stand] + adj_stands)].sum(axis=0)
+        # # TODO - don't hardcode
+        # MAX_HARVEST_CLUMP = 75
+        # if harvest_clump.max() > MAX_HARVEST_CLUMP:
+        #     adjacency_penalty = 1000
 
         # Calculate the diff to vars_over_time due to the change in mgmt
         olddata = data[new_stand, old_mgmt]
@@ -237,10 +252,11 @@ def schedule(
         delta = objective_metric - prev_metric
 
         rand = np.random.uniform()
+        k = 1
         if delta < 0.0:  # an improvement
             accept = True
             improve = True
-        elif math.exp(-delta/temp) > rand:  # within temperature, accept it
+        elif math.exp(-(k*delta)/temp) > rand:  # within temperature, accept it
             accept = True
             improve = False
 
@@ -253,7 +269,13 @@ def schedule(
             print "unweighted best: ", ",  ".join(["%s: %.2f" % x
                                                    for x in zip(variable_names,
                                                                 [a / b for a, b in zip(best_metrics, weights)])])
-            print
+            print 
+            if live_plot:
+                rc.publish("test_channel", 
+                    json.dumps({'plot_cache': plot_cache})
+                )
+                analog_plot.append(plot_cache)
+                plot_cache = []
             improves = 0
             accepts = 0
             last_reported_step = step
@@ -276,6 +298,19 @@ def schedule(
             best_metrics = objective_metrics
             best_vars_over_time = vars_over_time[:]
             new_best = True
+
+        if live_plot:
+            if not accept:
+                stype = "reject"
+            elif accept and not improve:
+                stype = "accept"
+            elif accept and improve and not new_best:
+                stype = "acceptimprove"
+            elif new_best:
+                stype = "newbest"  
+            
+            plot_cache.append((objective_metric, step, stype, best_metric))
+            
 
         if logfile and fh:
             if not accept:
