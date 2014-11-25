@@ -49,3 +49,15 @@ for each of your objectives.
 the results of the most optimal configuration: a list of stands and 
 their management prescription. 
 
+Screenshots
+------------
+Beginning the simulated annealing. Here we see the objective function getting *worse* initially in order to 
+eventually find the optimal configuration. 
+.. image:: https://raw.githubusercontent.com/Ecotrust/harvest-scheduler/master/docs/img/anneal1.png
+
+Towards the end of the simulated annealing process, we stabilize and fine tune the solution (and are much less tolerant of 
+solutions that worsen the objective function)
+.. image:: https://raw.githubusercontent.com/Ecotrust/harvest-scheduler/master/docs/img/anneal2.png
+
+Console output showing the composition of the objective function and the final results over time.
+.. image:: https://raw.githubusercontent.com/Ecotrust/harvest-scheduler/master/docs/img/console.png
