@@ -2,6 +2,7 @@ import numpy as np
 import json
 import math
 import sqlite3
+import os
 
 
 def from_random(stands, mgmts, timeperiods, numvars, low=4, high=14):
@@ -125,7 +126,7 @@ def calculate_metrics(line, stand):
         owl_acres = float(line['NSONEST']) * acres
         fire_code = float(line['FIREHZD'])
     except ValueError:
-        return  # TODO 
+        return  # TODO
 
     data.append(timber)
     data.append(timber)  # include another timber column for even flow
@@ -135,7 +136,7 @@ def calculate_metrics(line, stand):
     # Determine areas with high fire risk
     # 0 = very low risk, 1 = low risk, 2 = medium risk
     # 3 = medium-high risk, 4 = high risk
-    if fire_code > 3: 
+    if fire_code > 3:
         fire_acres = acres
     else:
         fire_acres = 0
@@ -161,7 +162,7 @@ def calculate_metrics(line, stand):
     elif PartialCut == 0:  # clear cut = use slope as cost proxy
         data.append(slope)
     elif PartialCut == 1:  # partial cut = use half slope as cost proxy
-        data.append(slope/2) 
+        data.append(slope/2)
 
     return data
 
@@ -174,7 +175,7 @@ def get_stands(con, batch=None, default_site=2):
     else:
         sql = """SELECT * FROM stands;"""
     for i, row in enumerate(cur.execute(sql)):
-        dd = dict(zip(row.keys(), row))  
+        dd = dict(zip(row.keys(), row))
         try:
             raw_restricted_rxs = dd['rx']
             try:
@@ -192,7 +193,7 @@ def get_stands(con, batch=None, default_site=2):
             dd['site'] = default_site
 
         dd['cond'] = dd['standid']
-        yield dd      
+        yield dd
 
 
 def handle_error(inputs):
@@ -204,7 +205,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-            
+
     # Check cache
     if cache:
         try:
@@ -218,7 +219,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
 
 
     # find all rx, offsets
-    axis_map = {'mgmt': [], 'standids': []} 
+    axis_map = {'mgmt': [], 'standids': []}
     sql = """
         SELECT rx, offset
         FROM fvsaggregate
@@ -243,8 +244,8 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
                 print "\t", rx, offset
 
             inputs = {
-                'var': variant, 
-                'rx': rx, 
+                'var': variant,
+                'rx': rx,
                 'cond': stand['cond'],
                 'site': stand['site'],
                 'climate': climate,
@@ -325,7 +326,7 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
         except:
             pass  # calculate it
 
-    axis_map = {'mgmt': [], 'standids': []} 
+    axis_map = {'mgmt': [], 'standids': []}
 
     # Get all unique stands
     sql = "SELECT distinct(standid) FROM fvs_stands"
@@ -337,9 +338,9 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
     for row in cursor.execute(sql):
         # mgmt is a tuple of rx and offset
         axis_map['mgmt'].append((row['rx'], row['offset']))
- 
+
     valid_mgmts = [] # 2D array holding valid mgmt ids for each stand
-    
+
     list4D = []
     for standid in axis_map['standids']:
         if verbose:
@@ -357,7 +358,7 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
                 WHERE standid = '%(standid)s'
                 and rx = %(rx)d
                 and "offset" = %(offset)d
-                and climate = '%(climate)s'; 
+                and climate = '%(climate)s';
                 -- original table MUST be ordered by standid, year
             """ % locals()
 
@@ -392,3 +393,122 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
         fh.write(json.dumps(valid_mgmts, indent=2))
 
     return arr, axis_map, valid_mgmts
+
+
+def from_geojson_gyb(geojson, gyb_db,
+                     standid_field="ID",
+                     condid_field="condid"):
+    """
+    If you expect to run this and just get good results without fully
+        understanding this code, you will have a bad time. It is meant as an
+        example and will almost surely require customization for each case.
+
+    Given a geojson and a sqlite database output by Growth-Yield Batch,
+        return the necessary data to run the scheduler
+    Geojson is assumed to be in an equal area projection using meters
+      Good start is Albers equal area (epsg 2163) which can be created by:
+      ogr2ogr -f GeoJSON -t_srs epsg:2163 stands.geojson stands.shp stands
+    Returns
+        stand_data: 4d array with shape == (nstands, nmgmts, ntimesteps, nvars)
+        axis_map: dict with the following keys
+            standids : list of standids with length == nstands
+            mgmt: list of 2-tuples with (rx, offset as string)
+        valid_mgmts : list with length == nstands
+    """
+    from shapely.geometry import shape
+
+    conn = sqlite3.connect(gyb_db)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    axis_map = {'mgmt': [], 'standids': []}
+    valid_mgmts = []  # 2D array holding valid mgmt ids for each stand
+    list4D = []
+
+    # Get all unique mgmts
+    sql = 'select rx, "offset" from trees_fvsaggregate group by rx, "offset"'
+    for row in cursor.execute(sql):
+        # mgmt is a tuple of rx and offset
+        axis_map['mgmt'].append((row['rx'], row['offset']))
+
+    # Get all unique stands
+    fc = json.loads(open(geojson, 'r').read())
+    for feat in fc['features']:
+        condid = feat['properties'][condid_field]
+        standid = feat['properties'][standid_field]
+
+        geom = shape(feat['geometry'])
+        acres = geom.area / 4046.86  # assume sq. meters -> acres
+
+        temporary_mgmt_list = []
+        list3D = []
+        for i, mgmt in enumerate(axis_map['mgmt']):
+            rx, offset = mgmt
+
+            sql = """SELECT
+                -- Timber
+                removed_merch_bdft / 1000.0 as timber, -- mbf/acre
+                -- Carbon
+                total_stand_carbon as carbon, -- tons/acre
+                -- Fire
+                (CASE WHEN FIREHZD > 3 THEN 1 ELSE 0 END) as fire --binary
+            from trees_fvsaggregate
+            where total_stand_carbon is not null -- remove any blanks
+            and cond = {condid}
+            and rx = {rx}
+            and "offset" = '{offset}'
+            ORDER BY year;
+            """.format(condid=condid, rx=rx, offset=offset)
+
+            list2D = [map(float,
+                          [r['timber'] * acres,
+                           r['carbon'] * acres,
+                           r['fire'] * acres,
+                           ]) for r in cursor.execute(sql)]
+            if list2D == []:
+                list2D = [[0.0] * 3] * 20  # assumes 20 time periods, 3 vars
+            else:
+                temporary_mgmt_list.append(i)
+
+            list3D.append(list2D)
+        list4D.append(list3D)
+        assert len(temporary_mgmt_list) > 0
+        valid_mgmts.append(temporary_mgmt_list)
+        axis_map['standids'].append(standid)
+
+    arr = np.asarray(list4D, dtype=np.float32)
+    return arr, axis_map, valid_mgmts
+
+
+def cache_prep(func, cache_dir=".cache"):
+    """
+    cache the results of a prep function
+    Can be used as a decorator or like:
+        func = cache_prep(from_geojson_gyb)
+        func(...)
+    And the expensive query results will be cached to disk and
+    nearly instantaneous the next time
+    """
+    def caching_func(*args, **kwargs):
+        sdpath = os.path.join(cache_dir, 'array.npy')
+        ampath = os.path.join(cache_dir, 'axis_map.json')
+        vmpath = os.path.join(cache_dir, 'valid_mgmts.json')
+        try:
+            stand_data = np.load(sdpath)
+            axis_map = json.loads(open(ampath).read())
+            valid_mgmts = json.loads(open(vmpath).read())
+            print "Using cached data..."
+        except:
+            print "Querying data from sources ..."
+            stand_data, axis_map, valid_mgmts = func(*args, **kwargs)
+            # cache results to disk
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+            np.save(sdpath, stand_data)
+            with open(ampath, 'w') as fh:
+                fh.write(json.dumps(axis_map, indent=2))
+            with open(vmpath, 'w') as fh:
+                fh.write(json.dumps(valid_mgmts, indent=2))
+
+        return stand_data, axis_map, valid_mgmts
+    return caching_func
