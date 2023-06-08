@@ -50,7 +50,7 @@ class AnalogPlot:
         self.plt2.set_ydata(self.y2s)
         self.plt3.set_xdata(self.x3s)
         self.plt3.set_ydata(self.y3s)
-        # import ipdb; ipdb.set_trace()
+
         plt.subplot(111)
         plt.ylim([min(self.latest)*0.9, max(self.latest)*1.1])
         plt.draw()

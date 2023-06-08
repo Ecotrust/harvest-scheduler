@@ -2,13 +2,13 @@
 # Report results
 def print_results(axis_map, vars_over_time):
     variable_names = [x['name'] for x in axis_map['variables']]
-    print "    ", " ".join(["%15s" % x for x in variable_names])
-    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
+    print("    {}".format(" ".join(["%15s" % x for x in variable_names])))
+    print("----|" + "".join([("-" * 15) + "|" for x in variable_names]))
     for i, annual_vars in enumerate(vars_over_time.tolist()):
-        print "%4d" % i, " ".join(["%15d" % x for x in annual_vars])
-    print "----|" + "".join([("-" * 15) + "|" for x in variable_names])
-    print "sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])
-    print "mean", " ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])
+        print("%4d" % i +" " + " ".join(["%15d" % x for x in annual_vars]))
+    print("----|" + "".join([("-" * 15) + "|" for x in variable_names]))
+    print("{} {}".f("sum ", " ".join(["%15d" % x for x in vars_over_time.sum(axis=0)])))
+    print("mean {}".f(" ".join(["%15d" % (float(x)/(i+1)) for x in vars_over_time.sum(axis=0)])))
 
 # write csv
 def write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename=None, climate=None):
@@ -21,9 +21,9 @@ def write_stand_mgmt_csv(optimal_stand_rxs, axis_map, filename=None, climate=Non
             txtrow = ",".join([str(x) for x in ([axis_map['standids'][i]] + 
                 list(axis_map['mgmt'][osrx])) + [str(climate)]])
             fh.write(txtrow + "\n")
-    print 
-    print "Optimal stand management (rx, offset) written to " + filename
-    print
+    print()
+    print("Optimal stand management (rx, offset) written to " + filename)
+    print()
 
 def star_schedule(args):
     """

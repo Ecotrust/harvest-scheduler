@@ -212,7 +212,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
             stand_data = np.load('cache.array.npy')
             axis_map = json.loads(open('cache.axis_map').read())
             valid_mgmts = json.loads(open('cache.valid_mgmts').read())
-            print "Using cached data to reduce calculation time..."
+            print("Using cached data to reduce calculation time...")
             return stand_data, axis_map, valid_mgmts
         except:
             pass  # calculate it
@@ -233,7 +233,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
 
     for stand in get_stands(conn, batch):
         if verbose:
-            print stand['cond']
+            print(stand['cond'])
 
         temporary_mgmt_list = []
         stand_mgmts = []
@@ -241,7 +241,7 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
         for mgmt_id, mgmt in enumerate(axis_map['mgmt']):
             rx, offset = mgmt
             if verbose:
-                print "\t", rx, offset
+                print("\t{} {}".f(rx, offset))
 
             inputs = {
                 'var': variant,
@@ -272,14 +272,14 @@ def prep_db(db, batch=None, variant="PN", climate="Ensemble-rcp60", cache=False,
 
                 yeardata = calculate_metrics(row, stand)
                 if verbose:
-                    print "\t\t", year, yeardata
+                    print("\t\t{} {}".f(year, yeardata))
 
                 assert len(yeardata) == 6
                 mgmt_timeperiods.append(yeardata)
 
             if empty:
                 #handle_error(inputs)
-                print "WARNING: skipping cond %s rx %s off %s" % (inputs['cond'], inputs['rx'], inputs['offset'])
+                print("WARNING: skipping cond %s rx %s off %s" % (inputs['cond'], inputs['rx'], inputs['offset']))
                 break
 
             if stand['restricted_rxs']:
@@ -321,7 +321,7 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
             stand_data = np.load('cache.array.%s.npy' % cache)
             axis_map = json.loads(open('cache.axis_map.%s.json' % climate).read())
             valid_mgmts = json.loads(open('cache.valid_mgmts.%s.json' % climate).read())
-            print "Using cached data to reduce calculation time..."
+            print("Using cached data to reduce calculation time...")
             return stand_data, axis_map, valid_mgmts
         except:
             pass  # calculate it
@@ -344,14 +344,14 @@ def prep_db2(db, climate="Ensemble-rcp60", cache=False, verbose=False):
     list4D = []
     for standid in axis_map['standids']:
         if verbose:
-            print standid
+            print(standid)
 
         temporary_mgmt_list = []
         list3D = []
         for i, mgmt in enumerate(axis_map['mgmt']):
             rx, offset = mgmt
             if verbose:
-                print "\t", rx, offset
+                print("\t{} {}".f(rx, offset))
 
             sql = """SELECT year, carbon, timber as timber, owl, cost
                 from fvs_stands
@@ -497,9 +497,9 @@ def cache_prep(func, cache_dir=".cache"):
             stand_data = np.load(sdpath)
             axis_map = json.loads(open(ampath).read())
             valid_mgmts = json.loads(open(vmpath).read())
-            print "Using cached data..."
+            print("Using cached data...")
         except:
-            print "Querying data from sources ..."
+            print("Querying data from sources ...")
             stand_data, axis_map, valid_mgmts = func(*args, **kwargs)
             # cache results to disk
             if not os.path.exists(cache_dir):

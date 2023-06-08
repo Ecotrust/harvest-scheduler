@@ -76,8 +76,8 @@ def schedule(
         # select the variable, sum to across time periods, take the max for each stand and add them
         theoretical_maxes[s] = data[:, :, :, s].sum(axis=2).max(axis=1).sum()
         theoretical_mins[s] = data[:, :, :, s].sum(axis=2).min(axis=1).sum()
-        print variable_names[s], theoretical_mins[s], "to", theoretical_maxes[s]
-    print
+        print(' '.join(variable_names[s], theoretical_mins[s], "to", theoretical_maxes[s]))
+    print('')
 
     enum_strategies = list(enumerate(strategies))
 
@@ -262,14 +262,14 @@ def schedule(
 
         if (step+1) % report_interval == 0 and step > 0:
             reported_steps = float(step - last_reported_step)
-            print "step: %-7d  accepted %0.2f %%   improved %0.2f %%   best_metric:   %-6.2f    temp: %-1.4f" % (
-                step+1, 100*accepts/reported_steps, 100*improves/reported_steps, best_metric, temp)
-            print "  weighted best: ", ",  ".join(["%s: %.2f" % x
-                                                   for x in zip(variable_names, best_metrics)])
-            print "unweighted best: ", ",  ".join(["%s: %.2f" % x
+            print("step: %-7d  accepted %0.2f %%   improved %0.2f %%   best_metric:   %-6.2f    temp: %-1.4f" % (
+                step+1, 100*accepts/reported_steps, 100*improves/reported_steps, best_metric, temp))
+            print("  weighted best: ", ",  ".join(["%s: %.2f" % x
+                                                   for x in zip(variable_names, best_metrics)]))
+            print("unweighted best: ", ",  ".join(["%s: %.2f" % x
                                                    for x in zip(variable_names,
-                                                                [a / b for a, b in zip(best_metrics, weights)])])
-            print 
+                                                                [a / b for a, b in zip(best_metrics, weights)])]))
+            print()
             if live_plot:
                 rc.publish("test_channel", 
                     json.dumps({'plot_cache': plot_cache})
@@ -325,7 +325,7 @@ def schedule(
             fh.write(','.join(str(x) for x in [step, objective_metric, stype, temp]))
             fh.write("\n")
 
-    print "Select sum time: ", select_sum_time
+    print("Select sum time: " + select_sum_time)
 
     if fh:
         fh.close()
